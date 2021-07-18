@@ -48,28 +48,28 @@ func NewLevelFromFile(filename string) *Level {
 			var t Tile
 			switch c {
 			case ' ', '\t', '\n', '\r':
-				t = Blank
+				t.Rune = Blank
 			case '#':
-				t = StoneWall
+				t.Rune = StoneWall
 			case '|':
-				t = ClosedDoor
+				t.Rune = ClosedDoor
 			case '/':
-				t = ClosedDoor
+				t.Rune = ClosedDoor
 			case '.':
-				t = DirtFloor
+				t.Rune = DirtFloor
 			case '@':
 				level.Player = NewPlayer(Pos{x, y})
-				t = Pending
+				t.Rune = Pending
 			case 'R':
 				m := NewRat(Pos{x, y})
 				level.Monsters = append(level.Monsters, m)
 				level.AliveMonstersPos[Pos{x, y}] = m
-				t = Pending
+				t.Rune = Pending
 			case 'S':
 				m := NewSpider(Pos{x, y})
 				level.Monsters = append(level.Monsters, m)
 				level.AliveMonstersPos[Pos{x, y}] = m
-				t = Pending
+				t.Rune = Pending
 			default:
 				panic("Invalid character in the map: " + string(c))
 			}
@@ -83,7 +83,7 @@ func NewLevelFromFile(filename string) *Level {
 
 	for y, row := range level.Map {
 		for x, tile := range row {
-			if tile == Pending {
+			if tile.Rune == Pending {
 				level.Map[y][x] = level.BfsFloor(Pos{x, y})
 			}
 		}
@@ -99,7 +99,7 @@ func (level *Level) inRange(pos Pos) bool {
 func (level *Level) canWalk(pos Pos) bool {
 	if level.inRange(pos) {
 		t := level.Map[pos.Y][pos.X]
-		switch t {
+		switch t.Rune {
 		case StoneWall, ClosedDoor:
 			return false
 		}
@@ -110,9 +110,9 @@ func (level *Level) canWalk(pos Pos) bool {
 
 func (level *Level) checkDoor(pos Pos) {
 	t := level.Map[pos.Y][pos.X]
-	switch t {
+	switch t.Rune {
 	case ClosedDoor:
-		level.Map[pos.Y][pos.X] = OpenedDoor
+		level.Map[pos.Y][pos.X].Rune = OpenedDoor
 	}
 }
 
@@ -167,9 +167,9 @@ func (level *Level) BfsFloor(start Pos) Tile {
 		current := frontier[0]
 
 		currentTile := level.Map[current.Y][current.X]
-		switch currentTile {
+		switch currentTile.Rune {
 		case DirtFloor:
-			return DirtFloor
+			return Tile{DirtFloor, false}
 		default:
 		}
 
@@ -181,7 +181,7 @@ func (level *Level) BfsFloor(start Pos) Tile {
 			}
 		}
 	}
-	return DirtFloor
+	return Tile{DirtFloor, false}
 }
 
 func (level *Level) addEvent(s string) {

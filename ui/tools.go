@@ -3,15 +3,14 @@ package ui2d
 import (
 	"bufio"
 	"os"
-	"rpg/game"
 	"strconv"
 	"strings"
 
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-func loadTextureIndex() map[game.Tile][]sdl.Rect {
-	textureIndex := make(map[game.Tile][]sdl.Rect)
+func loadTextureIndex() map[rune][]sdl.Rect {
+	textureIndex := make(map[rune][]sdl.Rect)
 
 	infile, err := os.Open("ui/assets/atlas-index.txt")
 	if err != nil {
@@ -21,7 +20,7 @@ func loadTextureIndex() map[game.Tile][]sdl.Rect {
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 
-		tileRune := game.Tile(line[0])
+		tileRune := rune(line[0])
 
 		xyc := line[1:]
 		splitXYC := strings.Split(xyc, ",")

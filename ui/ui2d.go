@@ -17,7 +17,7 @@ type ui struct {
 	window            *sdl.Window
 	textureAtlas      *sdl.Texture
 	whiteDot          *sdl.Texture
-	textureIndex      map[game.Tile][]sdl.Rect
+	textureIndex      map[rune][]sdl.Rect
 	keyboardState     []uint8
 	prevKeyboardState []uint8
 	centerX           int
@@ -212,14 +212,14 @@ func (ui *ui) draw(level *game.Level) {
 }
 
 func (ui *ui) getTile(tile game.Tile) sdl.Rect {
-	srcRects := ui.textureIndex[tile]
+	srcRects := ui.textureIndex[tile.Rune]
 	return srcRects[ui.r.Intn(len(srcRects))]
 }
 
 func (ui *ui) drawTiles(level *game.Level, offsetX, offsetY int32) {
 	for y, row := range level.Map {
 		for x, tile := range row {
-			if tile != game.Blank {
+			if tile.Rune != game.Blank {
 				dstRect := sdl.Rect{offsetX + int32(x)*32, offsetY + int32(y)*32, 32, 32}
 
 				pos := game.Pos{x, y}
@@ -229,7 +229,7 @@ func (ui *ui) drawTiles(level *game.Level, offsetX, offsetY int32) {
 					ui.textureAtlas.SetColorMod(255, 255, 255)
 				}
 
-				switch tile {
+				switch tile.Rune {
 				case game.ClosedDoor, game.OpenedDoor:
 					srcRect := ui.getTile(level.BfsFloor(pos))
 					ui.renderer.Copy(ui.textureAtlas, &srcRect, &dstRect)
@@ -247,12 +247,12 @@ func (ui *ui) drawMonsters(level *game.Level, offsetX, offsetY int32) {
 	for _, monster := range level.Monsters {
 		if monster.IsAlive() {
 			ui.textureAtlas.SetColorMod(255, 255, 255)
-			monsterSrcRect := ui.textureIndex[game.Tile(monster.Rune)][0]
+			monsterSrcRect := ui.textureIndex[monster.Rune][0]
 			monsterDstRect := sdl.Rect{offsetX + int32(monster.X)*32, offsetY + int32(monster.Y)*32, 32, 32}
 			ui.renderer.Copy(ui.textureAtlas, &monsterSrcRect, &monsterDstRect)
 		} else {
 			ui.textureAtlas.SetColorMod(255, 64, 64)
-			monsterSrcRect := ui.textureIndex[game.Tile(monster.Rune)][0]
+			monsterSrcRect := ui.textureIndex[monster.Rune][0]
 			monsterDstRect := sdl.Rect{offsetX + int32(monster.X)*32, offsetY + int32(monster.Y)*32, 32, 32}
 			ui.renderer.CopyEx(ui.textureAtlas, &monsterSrcRect, &monsterDstRect, 0, nil, sdl.FLIP_VERTICAL)
 		}
@@ -262,7 +262,7 @@ func (ui *ui) drawMonsters(level *game.Level, offsetX, offsetY int32) {
 }
 
 func (ui *ui) drawPlayer(level *game.Level, offsetX, offsetY int32) {
-	playerSrcRect := ui.textureIndex[game.Tile(level.Player.Rune)][0]
+	playerSrcRect := ui.textureIndex[level.Player.Rune][0]
 	playerDstRect := sdl.Rect{offsetX + int32(level.Player.X)*32, offsetY + int32(level.Player.Y)*32, 32, 32}
 	ui.renderer.Copy(ui.textureAtlas, &playerSrcRect, &playerDstRect)
 }
