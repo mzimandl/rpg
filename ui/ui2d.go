@@ -220,24 +220,19 @@ func (ui *ui) drawTiles(level *game.Level, offsetX, offsetY int32) {
 	for y, row := range level.Map {
 		for x, tile := range row {
 			if tile.Rune != game.Blank {
-				dstRect := sdl.Rect{offsetX + int32(x)*32, offsetY + int32(y)*32, 32, 32}
-
-				pos := game.Pos{x, y}
-				if level.Debug[pos] {
-					ui.textureAtlas.SetColorMod(128, 0, 0)
-				} else {
-					ui.textureAtlas.SetColorMod(255, 255, 255)
-				}
-
-				switch tile.Rune {
-				case game.ClosedDoor, game.OpenedDoor:
-					srcRect := ui.getTile(level.BfsFloor(pos))
-					ui.renderer.Copy(ui.textureAtlas, &srcRect, &dstRect)
-				default:
-				}
-
 				srcRect := ui.getTile(tile)
-				ui.renderer.Copy(ui.textureAtlas, &srcRect, &dstRect)
+				if tile.Visible || tile.Visited {
+					dstRect := sdl.Rect{offsetX + int32(x)*32, offsetY + int32(y)*32, 32, 32}
+					pos := game.Pos{x, y}
+					if level.Debug[pos] {
+						ui.textureAtlas.SetColorMod(128, 0, 0)
+					} else if tile.Visited && !tile.Visible {
+						ui.textureAtlas.SetColorMod(128, 128, 128)
+					} else {
+						ui.textureAtlas.SetColorMod(255, 255, 255)
+					}
+					ui.renderer.Copy(ui.textureAtlas, &srcRect, &dstRect)
+				}
 			}
 		}
 	}
@@ -245,16 +240,22 @@ func (ui *ui) drawTiles(level *game.Level, offsetX, offsetY int32) {
 
 func (ui *ui) drawMonsters(level *game.Level, offsetX, offsetY int32) {
 	for _, monster := range level.Monsters {
-		if monster.IsAlive() {
-			ui.textureAtlas.SetColorMod(255, 255, 255)
-			monsterSrcRect := ui.textureIndex[monster.Rune][0]
-			monsterDstRect := sdl.Rect{offsetX + int32(monster.X)*32, offsetY + int32(monster.Y)*32, 32, 32}
-			ui.renderer.Copy(ui.textureAtlas, &monsterSrcRect, &monsterDstRect)
-		} else {
-			ui.textureAtlas.SetColorMod(255, 64, 64)
-			monsterSrcRect := ui.textureIndex[monster.Rune][0]
-			monsterDstRect := sdl.Rect{offsetX + int32(monster.X)*32, offsetY + int32(monster.Y)*32, 32, 32}
-			ui.renderer.CopyEx(ui.textureAtlas, &monsterSrcRect, &monsterDstRect, 0, nil, sdl.FLIP_VERTICAL)
+		if level.Map[monster.Y][monster.X].Visited {
+			if monster.IsAlive() && level.Map[monster.Y][monster.X].Visible {
+				ui.textureAtlas.SetColorMod(255, 255, 255)
+				monsterSrcRect := ui.textureIndex[monster.Rune][0]
+				monsterDstRect := sdl.Rect{offsetX + int32(monster.X)*32, offsetY + int32(monster.Y)*32, 32, 32}
+				ui.renderer.Copy(ui.textureAtlas, &monsterSrcRect, &monsterDstRect)
+			} else {
+				if level.Map[monster.Y][monster.X].Visible {
+					ui.textureAtlas.SetColorMod(255, 64, 64)
+				} else {
+					ui.textureAtlas.SetColorMod(128, 32, 32)
+				}
+				monsterSrcRect := ui.textureIndex[monster.Rune][0]
+				monsterDstRect := sdl.Rect{offsetX + int32(monster.X)*32, offsetY + int32(monster.Y)*32, 32, 32}
+				ui.renderer.CopyEx(ui.textureAtlas, &monsterSrcRect, &monsterDstRect, 0, nil, sdl.FLIP_VERTICAL)
+			}
 		}
 	}
 

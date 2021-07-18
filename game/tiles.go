@@ -2,8 +2,8 @@ package game
 
 type Tile struct {
 	Rune    rune
-	visible bool
-	// visited bool
+	Visible bool
+	Visited bool
 }
 
 const (

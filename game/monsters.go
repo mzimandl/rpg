@@ -13,6 +13,7 @@ func NewRat(pos Pos) *Monster {
 	monster.Strength = 5
 	monster.Speed = 2.0
 	monster.ActionPoints = 0.0
+	monster.SightRange = 10
 	return monster
 }
 
@@ -25,6 +26,7 @@ func NewSpider(pos Pos) *Monster {
 	monster.Strength = 10
 	monster.Speed = 1.0
 	monster.ActionPoints = 0.0
+	monster.SightRange = 10
 	return monster
 }
 

@@ -2,7 +2,6 @@ package game
 
 type Player struct {
 	Character
-	prevPos Pos
 }
 
 func NewPlayer(pos Pos) *Player {
@@ -14,9 +13,10 @@ func NewPlayer(pos Pos) *Player {
 	player.Strength = 20
 	player.Speed = 1.0
 	player.ActionPoints = 0.0
+	player.SightRange = 10
 	return player
 }
 
-func (player *Player) Move(to Pos) {
+func (player *Player) Move(to Pos, level *Level) {
 	player.Pos = to
 }

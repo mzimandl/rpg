@@ -38,6 +38,7 @@ func NewLevelFromFile(filename string) *Level {
 	for i := range level.Map {
 		level.Map[i] = make([]Tile, longestRow)
 	}
+	level.Debug = make(map[Pos]bool)
 	level.AliveMonstersPos = make(map[Pos]*Monster)
 	level.Monsters = make([]*Monster, 0)
 	level.Events = make([]string, 0)
@@ -88,6 +89,7 @@ func NewLevelFromFile(filename string) *Level {
 			}
 		}
 	}
+	level.resolveVisibility()
 
 	return level
 }
@@ -106,6 +108,77 @@ func (level *Level) canWalk(pos Pos) bool {
 		return true
 	}
 	return false
+}
+
+func (level *Level) canSeeThrough(pos Pos) bool {
+	if level.inRange(pos) {
+		t := level.Map[pos.Y][pos.X]
+		switch t.Rune {
+		case StoneWall, ClosedDoor, Blank:
+			return false
+		default:
+			return true
+		}
+	}
+	return false
+}
+
+func (level *Level) bresenhamVisibility(start Pos, end Pos) {
+	steep := math.Abs(float64(end.Y-start.Y)) > math.Abs(float64(end.X-start.X))
+	if steep {
+		start.X, start.Y = start.Y, start.X
+		end.X, end.Y = end.Y, end.X
+	}
+
+	deltaX := int(math.Abs(float64(end.X - start.X)))
+	deltaY := int(math.Abs(float64(end.Y - start.Y)))
+	err := 0
+	y := start.Y
+	ystep := 1
+	if start.Y >= end.Y {
+		ystep = -1
+	}
+
+	reversed := start.X > end.X
+	if reversed {
+		for x := start.X; x > end.X; x-- {
+			var pos Pos
+			if steep {
+				pos = Pos{y, x}
+			} else {
+				pos = Pos{x, y}
+			}
+			level.Map[pos.Y][pos.X].Visible = true
+			level.Map[pos.Y][pos.X].Visited = true
+			if !level.canSeeThrough(pos) {
+				return
+			}
+			err += deltaY
+			if 2*err >= deltaX {
+				y += ystep
+				err -= deltaX
+			}
+		}
+	} else {
+		for x := start.X; x < end.X; x++ {
+			var pos Pos
+			if steep {
+				pos = Pos{y, x}
+			} else {
+				pos = Pos{x, y}
+			}
+			level.Map[pos.Y][pos.X].Visible = true
+			level.Map[pos.Y][pos.X].Visited = true
+			if !level.canSeeThrough(pos) {
+				return
+			}
+			err += deltaY
+			if 2*err >= deltaX {
+				y += ystep
+				err -= deltaX
+			}
+		}
+	}
 }
 
 func (level *Level) checkDoor(pos Pos) {
@@ -128,10 +201,37 @@ func (level *Level) resolveMovement(pos Pos) {
 			level.addEvent("DED")
 		}
 	} else if level.canWalk(pos) {
-		level.Player.Move(pos)
+		level.Player.Move(pos, level)
+		level.resetVisibility()
+		level.resolveVisibility()
 	} else {
 		level.checkDoor(pos)
+		level.resetVisibility()
+		level.resolveVisibility()
 	}
+}
+
+func (level *Level) resetVisibility() {
+	for y, row := range level.Map {
+		for x := range row {
+			level.Map[y][x].Visible = false
+		}
+	}
+}
+
+func (level *Level) resolveVisibility() {
+	pos := level.Player.Pos
+	dist := level.Player.SightRange
+	for y := pos.Y - dist; y <= pos.Y+dist; y++ {
+		for x := pos.X - dist; x <= pos.X+dist; x++ {
+			xDelta := pos.X - x
+			yDelta := pos.Y - y
+			if xDelta*xDelta+yDelta*yDelta <= dist*dist {
+				level.bresenhamVisibility(pos, Pos{x, y})
+			}
+		}
+	}
+	level.bresenhamVisibility(level.Player.Pos, Pos{level.Player.X, level.Player.Y + level.Player.SightRange})
 }
 
 func (level *Level) getNeighbors(pos Pos) []Pos {
@@ -169,7 +269,7 @@ func (level *Level) BfsFloor(start Pos) Tile {
 		currentTile := level.Map[current.Y][current.X]
 		switch currentTile.Rune {
 		case DirtFloor:
-			return Tile{DirtFloor, false}
+			return Tile{DirtFloor, false, false}
 		default:
 		}
 
@@ -181,7 +281,7 @@ func (level *Level) BfsFloor(start Pos) Tile {
 			}
 		}
 	}
-	return Tile{DirtFloor, false}
+	return Tile{DirtFloor, false, false}
 }
 
 func (level *Level) addEvent(s string) {
