@@ -1,9 +1,10 @@
 package game
 
 type Tile struct {
-	Rune    rune
-	Visible bool
-	Visited bool
+	Rune        rune
+	OverlayRune rune
+	Visible     bool
+	Visited     bool
 }
 
 const (
@@ -11,6 +12,8 @@ const (
 	DirtFloor       = '.'
 	ClosedDoor      = '|'
 	OpenedDoor      = '/'
+	UpStair         = 'u'
+	DownStair       = 'd'
 	Blank           = 0
 	Pending         = -1
 )

@@ -47,15 +47,19 @@ func NewLevelFromFile(filename string) *Level {
 		line := levelLines[y]
 		for x, c := range line {
 			var t Tile
+			t.OverlayRune = Blank
+
 			switch c {
 			case ' ', '\t', '\n', '\r':
 				t.Rune = Blank
 			case '#':
 				t.Rune = StoneWall
 			case '|':
-				t.Rune = ClosedDoor
+				t.OverlayRune = ClosedDoor
+				t.Rune = Pending
 			case '/':
-				t.Rune = ClosedDoor
+				t.OverlayRune = OpenedDoor
+				t.Rune = Pending
 			case '.':
 				t.Rune = DirtFloor
 			case '@':
@@ -85,7 +89,7 @@ func NewLevelFromFile(filename string) *Level {
 	for y, row := range level.Map {
 		for x, tile := range row {
 			if tile.Rune == Pending {
-				level.Map[y][x] = level.BfsFloor(Pos{x, y})
+				level.Map[y][x].Rune = level.BfsFloor(Pos{x, y})
 			}
 		}
 	}
@@ -102,7 +106,11 @@ func (level *Level) canWalk(pos Pos) bool {
 	if level.inRange(pos) {
 		t := level.Map[pos.Y][pos.X]
 		switch t.Rune {
-		case StoneWall, ClosedDoor:
+		case StoneWall, Blank:
+			return false
+		}
+		switch t.OverlayRune {
+		case ClosedDoor:
 			return false
 		}
 		return true
@@ -114,11 +122,14 @@ func (level *Level) canSeeThrough(pos Pos) bool {
 	if level.inRange(pos) {
 		t := level.Map[pos.Y][pos.X]
 		switch t.Rune {
-		case StoneWall, ClosedDoor, Blank:
+		case StoneWall, Blank:
 			return false
-		default:
-			return true
 		}
+		switch t.OverlayRune {
+		case ClosedDoor:
+			return false
+		}
+		return true
 	}
 	return false
 }
@@ -183,9 +194,9 @@ func (level *Level) bresenhamVisibility(start Pos, end Pos) {
 
 func (level *Level) checkDoor(pos Pos) {
 	t := level.Map[pos.Y][pos.X]
-	switch t.Rune {
+	switch t.OverlayRune {
 	case ClosedDoor:
-		level.Map[pos.Y][pos.X].Rune = OpenedDoor
+		level.Map[pos.Y][pos.X].OverlayRune = OpenedDoor
 	}
 }
 
@@ -221,12 +232,12 @@ func (level *Level) resetVisibility() {
 
 func (level *Level) resolveVisibility() {
 	pos := level.Player.Pos
-	dist := level.Player.SightRange
+	dist := level.Player.SightRange + 2
 	for y := pos.Y - dist; y <= pos.Y+dist; y++ {
 		for x := pos.X - dist; x <= pos.X+dist; x++ {
 			xDelta := pos.X - x
 			yDelta := pos.Y - y
-			if xDelta*xDelta+yDelta*yDelta <= dist*dist {
+			if xDelta*xDelta+yDelta*yDelta < dist*dist {
 				level.bresenhamVisibility(pos, Pos{x, y})
 			}
 		}
@@ -257,7 +268,7 @@ func (level *Level) getNeighbors(pos Pos) []Pos {
 	return neighbors
 }
 
-func (level *Level) BfsFloor(start Pos) Tile {
+func (level *Level) BfsFloor(start Pos) rune {
 	frontier := make([]Pos, 0, 8)
 	frontier = append(frontier, start)
 	visited := make(map[Pos]bool)
@@ -269,7 +280,7 @@ func (level *Level) BfsFloor(start Pos) Tile {
 		currentTile := level.Map[current.Y][current.X]
 		switch currentTile.Rune {
 		case DirtFloor:
-			return Tile{DirtFloor, false, false}
+			return DirtFloor
 		default:
 		}
 
@@ -281,7 +292,7 @@ func (level *Level) BfsFloor(start Pos) Tile {
 			}
 		}
 	}
-	return Tile{DirtFloor, false, false}
+	return DirtFloor
 }
 
 func (level *Level) addEvent(s string) {
