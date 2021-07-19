@@ -52,6 +52,8 @@ func NewLevelFromFile(filename string) *Level {
 			switch c {
 			case ' ', '\t', '\n', '\r':
 				t.Rune = Blank
+			case '.':
+				t.Rune = DirtFloor
 			case '#':
 				t.Rune = StoneWall
 			case '|':
@@ -60,8 +62,12 @@ func NewLevelFromFile(filename string) *Level {
 			case '/':
 				t.OverlayRune = OpenedDoor
 				t.Rune = Pending
-			case '.':
-				t.Rune = DirtFloor
+			case 'u':
+				t.OverlayRune = UpStair
+				t.Rune = Pending
+			case 'd':
+				t.OverlayRune = DownStair
+				t.Rune = Pending
 			case '@':
 				level.Player = NewPlayer(Pos{x, y})
 				t.Rune = Pending
