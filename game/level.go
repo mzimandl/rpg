@@ -11,8 +11,14 @@ type Level struct {
 	Player           *Player
 	Monsters         []*Monster
 	AliveMonstersPos map[Pos]*Monster
+	Portals          map[Pos]LevelPos
 	Events           []string
 	Debug            map[Pos]bool
+}
+
+type LevelPos struct {
+	level *Level
+	pos   Pos
 }
 
 func NewLevelFromFile(filename string, player *Player) *Level {
@@ -41,6 +47,7 @@ func NewLevelFromFile(filename string, player *Player) *Level {
 	level.Player = player
 	level.AliveMonstersPos = make(map[Pos]*Monster)
 	level.Monsters = make([]*Monster, 0)
+	level.Portals = make(map[Pos]LevelPos)
 	level.Events = make([]string, 0)
 	level.Debug = make(map[Pos]bool)
 
@@ -96,8 +103,6 @@ func NewLevelFromFile(filename string, player *Player) *Level {
 			}
 		}
 	}
-	level.resolveVisibility()
-
 	return level
 }
 
@@ -109,7 +114,7 @@ func (level *Level) canWalk(pos Pos) bool {
 	if level.inRange(pos) {
 		t := level.Map[pos.Y][pos.X]
 		switch t.Rune {
-		case StoneWall, Blank:
+		case StoneWall:
 			return false
 		}
 		switch t.OverlayRune {
@@ -125,7 +130,7 @@ func (level *Level) canSeeThrough(pos Pos) bool {
 	if level.inRange(pos) {
 		t := level.Map[pos.Y][pos.X]
 		switch t.Rune {
-		case StoneWall, Blank:
+		case StoneWall:
 			return false
 		}
 		switch t.OverlayRune {
@@ -200,28 +205,6 @@ func (level *Level) checkDoor(pos Pos) {
 	switch t.OverlayRune {
 	case ClosedDoor:
 		level.Map[pos.Y][pos.X].OverlayRune = OpenedDoor
-	}
-}
-
-func (level *Level) resolveMovement(pos Pos) {
-	monster, exists := level.AliveMonstersPos[pos]
-	if exists {
-		event := level.Player.Attack(&monster.Character)
-		level.addEvent(event)
-		if !monster.IsAlive() {
-			monster.Die(level)
-		}
-		if !level.Player.IsAlive() {
-			level.addEvent("DED")
-		}
-	} else if level.canWalk(pos) {
-		level.Player.Move(pos, level)
-		level.resetVisibility()
-		level.resolveVisibility()
-	} else {
-		level.checkDoor(pos)
-		level.resetVisibility()
-		level.resolveVisibility()
 	}
 }
 

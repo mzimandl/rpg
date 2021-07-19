@@ -157,21 +157,21 @@ func (ui *ui) Destroy() {
 }
 
 func (ui *ui) handleSrolling(level *game.Level) (int32, int32) {
-	if ui.centerX == -1 && ui.centerY == -1 {
+	if ui.centerX == -1 || ui.centerY == -1 {
 		ui.centerX = level.Player.X
 		ui.centerY = level.Player.Y
-	}
+	} else {
+		if level.Player.X > ui.centerX+5 {
+			ui.centerX = level.Player.X - 5
+		} else if level.Player.X < ui.centerX-5 {
+			ui.centerX = level.Player.X + 5
+		}
 
-	if level.Player.X > ui.centerX+5 {
-		ui.centerX = level.Player.X - 5
-	} else if level.Player.X < ui.centerX-5 {
-		ui.centerX = level.Player.X + 5
-	}
-
-	if level.Player.Y > ui.centerY+5 {
-		ui.centerY = level.Player.Y - 5
-	} else if level.Player.Y < ui.centerY-5 {
-		ui.centerY = level.Player.Y + 5
+		if level.Player.Y > ui.centerY+5 {
+			ui.centerY = level.Player.Y - 5
+		} else if level.Player.Y < ui.centerY-5 {
+			ui.centerY = level.Player.Y + 5
+		}
 	}
 
 	offsetX := (ui.winWidth / 2) - int32(ui.centerX)*32
@@ -292,8 +292,10 @@ func (ui *ui) keyPressed(scancode int) bool {
 }
 
 func (ui *ui) Run() {
+	currentLevel := <-ui.levelChan
+	lastLevel := currentLevel
+	ui.draw(currentLevel)
 	input := game.Input{game.None}
-	ui.draw(<-ui.levelChan)
 
 	for {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
@@ -329,7 +331,12 @@ func (ui *ui) Run() {
 			case game.QuitGame:
 				return
 			default:
-				ui.draw(<-ui.levelChan)
+				currentLevel = <-ui.levelChan
+				if lastLevel != currentLevel {
+					ui.centerX, ui.centerY = -1, -1
+					lastLevel = currentLevel
+				}
+				ui.draw(currentLevel)
 			}
 			input.Typ = game.None
 		}

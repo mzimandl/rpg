@@ -1,7 +1,10 @@
 package game
 
 import (
+	"encoding/csv"
+	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -9,7 +12,7 @@ type Game struct {
 	LevelChan    chan *Level
 	InputChan    chan *Input
 	Player       *Player
-	Level        map[string]*Level
+	Levels       map[string]*Level
 	CurrentLevel *Level
 }
 
@@ -30,9 +33,9 @@ func NewGame() *Game {
 		levelName := filename[lastSlashIndex+1 : extIndex]
 		levels[levelName] = NewLevelFromFile(filename, player)
 	}
-	currentLevel := levels["level1"]
-
-	return &Game{levelChan, inputChan, player, levels, currentLevel}
+	game := &Game{levelChan, inputChan, player, levels, nil}
+	game.loadWorldFile()
+	return game
 }
 
 type InputType int
@@ -62,26 +65,102 @@ type Entity struct {
 	Name string
 }
 
+func (game *Game) loadWorldFile() {
+	file, err := os.Open("game/maps/world.txt")
+	if err != nil {
+		panic(err)
+	}
+	csvReader := csv.NewReader(file)
+	csvReader.FieldsPerRecord = -1
+	csvReader.TrimLeadingSpace = true
+	rows, err := csvReader.ReadAll()
+	if err != nil {
+		panic(err)
+	}
+
+	for rowIndex, row := range rows {
+		// first level
+		if rowIndex == 0 {
+			game.CurrentLevel = game.Levels[row[0]]
+			continue
+		}
+
+		// portal entry
+		level := game.Levels[row[0]]
+		x, err := strconv.ParseInt(row[1], 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		y, err := strconv.ParseInt(row[2], 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		pos := Pos{int(x), int(y)}
+
+		// portal destination
+		dstLevel := game.Levels[row[3]]
+		x, err = strconv.ParseInt(row[4], 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		y, err = strconv.ParseInt(row[5], 10, 64)
+		if err != nil {
+			panic(err)
+		}
+		dstPos := Pos{int(x), int(y)}
+
+		// link
+		level.Portals[pos] = LevelPos{dstLevel, dstPos}
+	}
+}
+
+func (game *Game) resolveMovement(pos Pos) {
+	monster, exists := game.CurrentLevel.AliveMonstersPos[pos]
+	if exists {
+		event := game.Player.Attack(&monster.Character)
+		game.CurrentLevel.addEvent(event)
+		if !monster.IsAlive() {
+			monster.Die(game.CurrentLevel)
+		}
+		if !game.Player.IsAlive() {
+			game.CurrentLevel.addEvent("DED")
+		}
+	} else if game.CurrentLevel.canWalk(pos) {
+		game.CurrentLevel.Player.Move(pos, game.CurrentLevel)
+		portal, exists := game.CurrentLevel.Portals[game.Player.Pos]
+		if exists {
+			game.CurrentLevel = portal.level
+			game.Player.Pos = portal.pos
+		}
+		game.CurrentLevel.resetVisibility()
+		game.CurrentLevel.resolveVisibility()
+	} else {
+		game.CurrentLevel.checkDoor(pos)
+		game.CurrentLevel.resetVisibility()
+		game.CurrentLevel.resolveVisibility()
+	}
+}
+
 func (game *Game) handleInput(input *Input) {
-	p := game.CurrentLevel.Player
+	p := game.Player
 	switch input.Typ {
 	case Up:
 		newPos := Pos{p.X, p.Y - 1}
-		game.CurrentLevel.resolveMovement(newPos)
+		game.resolveMovement(newPos)
 	case Down:
 		newPos := Pos{p.X, p.Y + 1}
-		game.CurrentLevel.resolveMovement(newPos)
+		game.resolveMovement(newPos)
 	case Left:
 		newPos := Pos{p.X - 1, p.Y}
-		game.CurrentLevel.resolveMovement(newPos)
+		game.resolveMovement(newPos)
 	case Right:
 		newPos := Pos{p.X + 1, p.Y}
-		game.CurrentLevel.resolveMovement(newPos)
+		game.resolveMovement(newPos)
 	}
 }
 
 func (game *Game) Run() {
-
+	game.CurrentLevel.resolveVisibility()
 	game.LevelChan <- game.CurrentLevel
 
 	for input := range game.InputChan {
