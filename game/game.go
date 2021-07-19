@@ -1,19 +1,38 @@
 package game
 
+import (
+	"path/filepath"
+	"strings"
+)
+
 type Game struct {
-	LevelChans []chan *Level
-	InputChan  chan *Input
-	Level      *Level
+	LevelChan    chan *Level
+	InputChan    chan *Input
+	Player       *Player
+	Level        map[string]*Level
+	CurrentLevel *Level
 }
 
-func NewGame(numWindows int, levelPath string) *Game {
-	levelChans := make([]chan *Level, numWindows)
-	for i := range levelChans {
-		levelChans[i] = make(chan *Level)
-	}
+func NewGame() *Game {
+	levelChan := make(chan *Level)
 	inputChan := make(chan *Input)
 
-	return &Game{levelChans, inputChan, NewLevelFromFile(levelPath)}
+	levels := make(map[string]*Level)
+	filenames, err := filepath.Glob("game/maps/*.map")
+	if err != nil {
+		panic(err)
+	}
+
+	player := NewPlayer(Pos{0, 0})
+	for _, filename := range filenames {
+		extIndex := strings.LastIndex(filename, ".map")
+		lastSlashIndex := strings.LastIndex(filename, "/")
+		levelName := filename[lastSlashIndex+1 : extIndex]
+		levels[levelName] = NewLevelFromFile(filename, player)
+	}
+	currentLevel := levels["level1"]
+
+	return &Game{levelChan, inputChan, player, levels, currentLevel}
 }
 
 type InputType int
@@ -26,13 +45,11 @@ const (
 	Left
 	Right
 
-	CloseWindow
 	QuitGame
 )
 
 type Input struct {
-	Typ          InputType
-	LevelChannel chan *Level
+	Typ InputType
 }
 
 type Pos struct {
@@ -46,38 +63,26 @@ type Entity struct {
 }
 
 func (game *Game) handleInput(input *Input) {
-	p := game.Level.Player
+	p := game.CurrentLevel.Player
 	switch input.Typ {
-	case CloseWindow:
-		close(input.LevelChannel)
-		chanIndex := 0
-		for i, c := range game.LevelChans {
-			if c == input.LevelChannel {
-				chanIndex = i
-				break
-			}
-		}
-		game.LevelChans = append(game.LevelChans[:chanIndex], game.LevelChans[chanIndex+1:]...)
 	case Up:
 		newPos := Pos{p.X, p.Y - 1}
-		game.Level.resolveMovement(newPos)
+		game.CurrentLevel.resolveMovement(newPos)
 	case Down:
 		newPos := Pos{p.X, p.Y + 1}
-		game.Level.resolveMovement(newPos)
+		game.CurrentLevel.resolveMovement(newPos)
 	case Left:
 		newPos := Pos{p.X - 1, p.Y}
-		game.Level.resolveMovement(newPos)
+		game.CurrentLevel.resolveMovement(newPos)
 	case Right:
 		newPos := Pos{p.X + 1, p.Y}
-		game.Level.resolveMovement(newPos)
+		game.CurrentLevel.resolveMovement(newPos)
 	}
 }
 
 func (game *Game) Run() {
 
-	for _, lchan := range game.LevelChans {
-		lchan <- game.Level
-	}
+	game.LevelChan <- game.CurrentLevel
 
 	for input := range game.InputChan {
 		if input.Typ == QuitGame {
@@ -85,18 +90,12 @@ func (game *Game) Run() {
 		}
 
 		game.handleInput(input)
-		if len(game.LevelChans) == 0 {
-			return
-		}
-
-		for _, monster := range game.Level.Monsters {
+		for _, monster := range game.CurrentLevel.Monsters {
 			if monster.IsAlive() {
-				monster.Update(game.Level)
+				monster.Update(game.CurrentLevel)
 			}
 		}
 
-		for _, lchan := range game.LevelChans {
-			lchan <- game.Level
-		}
+		game.LevelChan <- game.CurrentLevel
 	}
 }

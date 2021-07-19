@@ -292,7 +292,7 @@ func (ui *ui) keyPressed(scancode int) bool {
 }
 
 func (ui *ui) Run() {
-	input := game.Input{game.None, ui.levelChan}
+	input := game.Input{game.None}
 	ui.draw(<-ui.levelChan)
 
 	for {
@@ -302,7 +302,7 @@ func (ui *ui) Run() {
 				input.Typ = game.QuitGame
 			case *sdl.WindowEvent:
 				if e.Event == sdl.WINDOWEVENT_CLOSE {
-					input.Typ = game.CloseWindow
+					input.Typ = game.QuitGame
 				}
 			}
 		}
@@ -326,10 +326,9 @@ func (ui *ui) Run() {
 		if input.Typ != game.None {
 			ui.inputChan <- &input
 			switch input.Typ {
-			case game.QuitGame, game.CloseWindow:
+			case game.QuitGame:
 				return
 			default:
-				// after input wait for modified level
 				ui.draw(<-ui.levelChan)
 			}
 			input.Typ = game.None

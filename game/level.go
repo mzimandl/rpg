@@ -15,7 +15,7 @@ type Level struct {
 	Debug            map[Pos]bool
 }
 
-func NewLevelFromFile(filename string) *Level {
+func NewLevelFromFile(filename string, player *Player) *Level {
 	file, err := os.Open(filename)
 	if err != nil {
 		panic(err)
@@ -38,10 +38,11 @@ func NewLevelFromFile(filename string) *Level {
 	for i := range level.Map {
 		level.Map[i] = make([]Tile, longestRow)
 	}
-	level.Debug = make(map[Pos]bool)
+	level.Player = player
 	level.AliveMonstersPos = make(map[Pos]*Monster)
 	level.Monsters = make([]*Monster, 0)
 	level.Events = make([]string, 0)
+	level.Debug = make(map[Pos]bool)
 
 	for y := range level.Map {
 		line := levelLines[y]
@@ -69,7 +70,7 @@ func NewLevelFromFile(filename string) *Level {
 				t.OverlayRune = DownStair
 				t.Rune = Pending
 			case '@':
-				level.Player = NewPlayer(Pos{x, y})
+				level.Player.Pos = Pos{x, y}
 				t.Rune = Pending
 			case 'R':
 				m := NewRat(Pos{x, y})
@@ -86,10 +87,6 @@ func NewLevelFromFile(filename string) *Level {
 			}
 			level.Map[y][x] = t
 		}
-	}
-
-	if level.Player == nil {
-		panic("Missing player in the map!")
 	}
 
 	for y, row := range level.Map {
