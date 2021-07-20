@@ -125,12 +125,15 @@ func (game *Game) resolveMovement(pos Pos) {
 		if !game.Player.IsAlive() {
 			game.CurrentLevel.addEvent("DED")
 		}
+		game.CurrentLevel.LastEvent = Attack
 	} else if game.CurrentLevel.canWalk(pos) {
 		game.CurrentLevel.Player.Move(pos, game.CurrentLevel)
+		game.CurrentLevel.LastEvent = Move
 		portal, exists := game.CurrentLevel.Portals[game.Player.Pos]
 		if exists {
 			game.CurrentLevel = portal.level
 			game.Player.Pos = portal.pos
+			game.CurrentLevel.LastEvent = Portal
 		}
 		game.CurrentLevel.resetVisibility()
 		game.CurrentLevel.resolveVisibility()
@@ -168,6 +171,7 @@ func (game *Game) Run() {
 			return
 		}
 
+		game.CurrentLevel.LastEvent = Nothing
 		game.handleInput(input)
 		for _, monster := range game.CurrentLevel.Monsters {
 			if monster.IsAlive() {

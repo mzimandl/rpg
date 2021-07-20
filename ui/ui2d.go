@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/veandco/go-sdl2/img"
+	"github.com/veandco/go-sdl2/mix"
 	"github.com/veandco/go-sdl2/sdl"
 	"github.com/veandco/go-sdl2/ttf"
 )
@@ -27,6 +28,8 @@ type ui struct {
 	inputChan         chan *game.Input
 	fonts             map[FontType]*ttf.Font
 	textCache         map[TextCacheKey]*sdl.Texture
+	music             *mix.Music
+	sounds            sounds
 }
 
 type FontType int
@@ -42,6 +45,17 @@ type TextCacheKey struct {
 	text     string
 }
 
+type sounds struct {
+	doorOpen []*mix.Chunk
+	footstep []*mix.Chunk
+}
+
+func playRandomSound(chunks []*mix.Chunk, volume int) {
+	chunkIndex := rand.Intn(len(chunks))
+	chunks[chunkIndex].Volume(volume)
+	chunks[chunkIndex].Play(-1, 0)
+}
+
 func init() {
 	err := sdl.Init(sdl.INIT_EVERYTHING)
 	if err != nil {
@@ -55,9 +69,18 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	err = mix.Init(mix.INIT_OGG)
+	if err != nil {
+		panic(err)
+	}
+	err = mix.OpenAudio(22050, mix.DEFAULT_FORMAT, 2, 4096)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func Destroy() {
+	mix.Quit()
 	ttf.Quit()
 	img.Quit()
 	sdl.Quit()
@@ -116,6 +139,31 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 		ui.prevKeyboardState[i] = v
 	}
 
+	ui.music, err = mix.LoadMUS("ui/assets/dungeon002.ogg")
+	if err != nil {
+		panic(err)
+	}
+	ui.music.Play(-1)
+
+	footstepBase := "ui/assets/sounds/footstep0"
+	for i := 0; i <= 9; i++ {
+		footstepFile := footstepBase + strconv.Itoa(i) + ".ogg"
+		chunk, err := mix.LoadWAV(footstepFile)
+		if err != nil {
+			panic(err)
+		}
+		ui.sounds.footstep = append(ui.sounds.footstep, chunk)
+	}
+	doorOpenBase := "ui/assets/sounds/doorOpen_"
+	for i := 1; i <= 2; i++ {
+		doorOpenFile := doorOpenBase + strconv.Itoa(i) + ".ogg"
+		chunk, err := mix.LoadWAV(doorOpenFile)
+		if err != nil {
+			panic(err)
+		}
+		ui.sounds.doorOpen = append(ui.sounds.doorOpen, chunk)
+	}
+
 	return ui
 }
 
@@ -145,6 +193,13 @@ func (ui *ui) stringToTexture(s string, fontType FontType) *sdl.Texture {
 }
 
 func (ui *ui) Destroy() {
+	for _, chunk := range ui.sounds.doorOpen {
+		chunk.Free()
+	}
+	for _, chunk := range ui.sounds.footstep {
+		chunk.Free()
+	}
+	ui.music.Free()
 	ui.textureAtlas.Destroy()
 	for _, texture := range ui.textCache {
 		texture.Destroy()
@@ -293,7 +348,6 @@ func (ui *ui) keyPressed(scancode int) bool {
 
 func (ui *ui) Run() {
 	currentLevel := <-ui.levelChan
-	lastLevel := currentLevel
 	ui.draw(currentLevel)
 	input := game.Input{game.None}
 
@@ -332,9 +386,13 @@ func (ui *ui) Run() {
 				return
 			default:
 				currentLevel = <-ui.levelChan
-				if lastLevel != currentLevel {
+				switch currentLevel.LastEvent {
+				case game.Portal:
 					ui.centerX, ui.centerY = -1, -1
-					lastLevel = currentLevel
+				case game.Move:
+					playRandomSound(ui.sounds.footstep, 10)
+				case game.DoorOpen:
+					playRandomSound(ui.sounds.doorOpen, 10)
 				}
 				ui.draw(currentLevel)
 			}

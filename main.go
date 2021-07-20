@@ -8,9 +8,8 @@ import (
 )
 
 func main() {
-	var wg sync.WaitGroup
-
 	g := game.NewGame() // problematic multiple window view, something with sdl and threads
+	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		runtime.LockOSThread() // SDL has to stay on one thread
@@ -20,7 +19,6 @@ func main() {
 		wg.Done()
 	}()
 	g.Run()
-
 	wg.Wait()
 	ui2d.Destroy()
 }

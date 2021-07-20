@@ -14,7 +14,19 @@ type Level struct {
 	Portals          map[Pos]LevelPos
 	Events           []string
 	Debug            map[Pos]bool
+	LastEvent        GameEvent
 }
+
+type GameEvent int
+
+const (
+	Nothing GameEvent = iota
+	Move
+	DoorOpen
+	Attack
+	Hit
+	Portal
+)
 
 type LevelPos struct {
 	level *Level
@@ -205,6 +217,7 @@ func (level *Level) checkDoor(pos Pos) {
 	switch t.OverlayRune {
 	case ClosedDoor:
 		level.Map[pos.Y][pos.X].OverlayRune = OpenedDoor
+		level.LastEvent = DoorOpen
 	}
 }
 
