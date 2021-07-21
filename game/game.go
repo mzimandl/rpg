@@ -48,6 +48,8 @@ const (
 	Left
 	Right
 
+	TakeAll
+
 	QuitGame
 )
 
@@ -110,7 +112,7 @@ func (game *Game) loadWorldFile() {
 		dstPos := Pos{int(x), int(y)}
 
 		// link
-		level.Portals[pos] = LevelPos{dstLevel, dstPos}
+		level.Portals[pos] = &LevelPos{dstLevel, dstPos}
 	}
 }
 
@@ -118,22 +120,23 @@ func (game *Game) resolveMovement(pos Pos) {
 	monster, exists := game.CurrentLevel.AliveMonstersPos[pos]
 	if exists {
 		event := game.Player.Attack(&monster.Character)
+		game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, Attack)
 		game.CurrentLevel.addEvent(event)
 		if !monster.IsAlive() {
-			monster.Die(game.CurrentLevel)
+			monster.Kill(game.CurrentLevel)
 		}
 		if !game.Player.IsAlive() {
 			game.CurrentLevel.addEvent("DED")
 		}
-		game.CurrentLevel.LastEvent = Attack
 	} else if game.CurrentLevel.canWalk(pos) {
 		game.CurrentLevel.Player.Move(pos, game.CurrentLevel)
-		game.CurrentLevel.LastEvent = Move
-		portal, exists := game.CurrentLevel.Portals[game.Player.Pos]
-		if exists {
+		game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, Move)
+
+		portal, portalExists := game.CurrentLevel.Portals[game.Player.Pos]
+		if portalExists {
 			game.CurrentLevel = portal.level
 			game.Player.Pos = portal.pos
-			game.CurrentLevel.LastEvent = Portal
+			game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, Portal)
 		}
 		game.CurrentLevel.resetVisibility()
 		game.CurrentLevel.resolveVisibility()
@@ -159,6 +162,14 @@ func (game *Game) handleInput(input *Input) {
 	case Right:
 		newPos := Pos{p.X + 1, p.Y}
 		game.resolveMovement(newPos)
+	case TakeAll:
+		items, itemsExists := game.CurrentLevel.Items[game.Player.Pos]
+		if itemsExists {
+			for _, item := range items {
+				game.CurrentLevel.MoveItem(item, &game.Player.Character)
+				game.CurrentLevel.addEvent("You took item: " + item.Name)
+			}
+		}
 	}
 }
 
@@ -167,11 +178,11 @@ func (game *Game) Run() {
 	game.LevelChan <- game.CurrentLevel
 
 	for input := range game.InputChan {
+		game.CurrentLevel.LastEvents = make([]GameEvent, 0)
 		if input.Typ == QuitGame {
 			return
 		}
 
-		game.CurrentLevel.LastEvent = Nothing
 		game.handleInput(input)
 		for _, monster := range game.CurrentLevel.Monsters {
 			if monster.IsAlive() {

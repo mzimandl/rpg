@@ -73,7 +73,10 @@ func (m *Monster) Move(level *Level, next Pos) bool {
 	return true
 }
 
-func (m *Monster) Die(level *Level) {
-	level.Monsters = append(level.Monsters, m)
+func (m *Monster) Kill(level *Level) {
 	delete(level.AliveMonstersPos, m.Pos)
+	for _, item := range m.Items {
+		item.Pos = m.Pos
+		level.Items[m.Pos] = append(level.Items[m.Pos], item)
+	}
 }

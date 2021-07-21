@@ -1,6 +1,7 @@
 package ui2d
 
 import (
+	"math"
 	"math/rand"
 	"rpg/game"
 	"strconv"
@@ -242,8 +243,13 @@ func (ui *ui) draw(level *game.Level) {
 	ui.renderer.Clear()
 
 	ui.drawTiles(level, offsetX, offsetY)
+	ui.drawDeadMonsters(level, offsetX, offsetY)
+	ui.drawItems(level, offsetX, offsetY)
 	ui.drawMonsters(level, offsetX, offsetY)
 	ui.drawPlayer(level, offsetX, offsetY)
+
+	ui.drawInventory(level)
+	ui.drawPresentItems(level, 0, 3*ui.winHeight/4-32)
 
 	var textPosY int32 = 0
 	ui.drawBox(0, 3*ui.winHeight/4, ui.winWidth/4, ui.winHeight/4, sdl.Color{64, 64, 64, 192})
@@ -298,8 +304,7 @@ func (ui *ui) drawTiles(level *game.Level, offsetX, offsetY int32) {
 	}
 }
 
-// TODO split drawing dead monsters, all dead monsters has to be drawn before alive ones
-func (ui *ui) drawMonsters(level *game.Level, offsetX, offsetY int32) {
+func (ui *ui) drawDeadMonsters(level *game.Level, offsetX, offsetY int32) {
 	for _, monster := range level.Monsters {
 		if !monster.IsAlive() {
 			if level.Map[monster.Y][monster.X].Visited {
@@ -315,14 +320,46 @@ func (ui *ui) drawMonsters(level *game.Level, offsetX, offsetY int32) {
 			}
 		}
 	}
-
 	ui.textureAtlas.SetColorMod(255, 255, 255)
+}
+
+func (ui *ui) drawMonsters(level *game.Level, offsetX, offsetY int32) {
 	for _, monster := range level.Monsters {
 		if monster.IsAlive() && level.Map[monster.Y][monster.X].Visible {
 			monsterSrcRect := ui.textureIndex[monster.Rune][0]
 			monsterDstRect := sdl.Rect{offsetX + int32(monster.X)*32, offsetY + int32(monster.Y)*32, 32, 32}
 			ui.renderer.Copy(ui.textureAtlas, &monsterSrcRect, &monsterDstRect)
 		}
+	}
+}
+
+func (ui *ui) drawItems(level *game.Level, offsetX, offsetY int32) {
+	for _, items := range level.Items {
+		side := int32(32 / math.Sqrt(float64(len(items))))
+		diff := float64(32-side) / float64(len(items))
+		for i, item := range items {
+			if level.Map[item.Y][item.X].Visible {
+				itemSrcRect := ui.textureIndex[item.Rune][0]
+				itemDstRect := sdl.Rect{offsetX + int32(item.X)*32 + int32(float64(i)*diff), offsetY + int32(item.Y)*32 + int32(float64(i)*diff), side, side}
+				ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &itemDstRect)
+			}
+		}
+	}
+}
+
+func (ui *ui) drawPresentItems(level *game.Level, x, y int32) {
+	for i, item := range level.Items[level.Player.Pos] {
+		itemSrcRect := ui.textureIndex[item.Rune][0]
+		itemDstRect := sdl.Rect{int32(i*32) + x, y, 32, 32}
+		ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &itemDstRect)
+	}
+}
+
+func (ui *ui) drawInventory(level *game.Level) {
+	for i, item := range level.Player.Items {
+		itemSrcRect := ui.textureIndex[item.Rune][0]
+		itemDstRect := sdl.Rect{ui.winWidth - 32, int32(32 * i), 32, 32}
+		ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &itemDstRect)
 	}
 }
 
@@ -374,6 +411,8 @@ func (ui *ui) Run() {
 			input.Typ = game.Left
 		} else if ui.keyPressed(sdl.SCANCODE_RIGHT) {
 			input.Typ = game.Right
+		} else if ui.keyPressed(sdl.SCANCODE_T) {
+			input.Typ = game.TakeAll
 		}
 		for i, v := range ui.keyboardState {
 			ui.prevKeyboardState[i] = v
@@ -386,13 +425,15 @@ func (ui *ui) Run() {
 				return
 			default:
 				currentLevel = <-ui.levelChan
-				switch currentLevel.LastEvent {
-				case game.Portal:
-					ui.centerX, ui.centerY = -1, -1
-				case game.Move:
-					playRandomSound(ui.sounds.footstep, 10)
-				case game.DoorOpen:
-					playRandomSound(ui.sounds.doorOpen, 10)
+				for _, lastEvent := range currentLevel.LastEvents {
+					switch lastEvent {
+					case game.Portal:
+						ui.centerX, ui.centerY = -1, -1
+					case game.Move:
+						playRandomSound(ui.sounds.footstep, 10)
+					case game.DoorOpen:
+						playRandomSound(ui.sounds.doorOpen, 10)
+					}
 				}
 				ui.draw(currentLevel)
 			}

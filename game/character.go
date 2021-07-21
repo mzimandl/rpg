@@ -9,6 +9,7 @@ type Character struct {
 	Speed        float64
 	ActionPoints float64
 	SightRange   int
+	Items        []*Item
 }
 
 func (ch *Character) IsAlive() bool {

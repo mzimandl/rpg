@@ -11,20 +11,19 @@ type Level struct {
 	Player           *Player
 	Monsters         []*Monster
 	AliveMonstersPos map[Pos]*Monster
-	Portals          map[Pos]LevelPos
+	Items            map[Pos][]*Item
+	Portals          map[Pos]*LevelPos
 	Events           []string
 	Debug            map[Pos]bool
-	LastEvent        GameEvent
+	LastEvents       []GameEvent
 }
 
 type GameEvent int
 
 const (
-	Nothing GameEvent = iota
-	Move
+	Move GameEvent = iota
 	DoorOpen
 	Attack
-	Hit
 	Portal
 )
 
@@ -58,9 +57,8 @@ func NewLevelFromFile(filename string, player *Player) *Level {
 	}
 	level.Player = player
 	level.AliveMonstersPos = make(map[Pos]*Monster)
-	level.Monsters = make([]*Monster, 0)
-	level.Portals = make(map[Pos]LevelPos)
-	level.Events = make([]string, 0)
+	level.Portals = make(map[Pos]*LevelPos)
+	level.Items = make(map[Pos][]*Item)
 	level.Debug = make(map[Pos]bool)
 
 	for y := range level.Map {
@@ -68,6 +66,7 @@ func NewLevelFromFile(filename string, player *Player) *Level {
 		for x, c := range line {
 			var t Tile
 			t.OverlayRune = Blank
+			pos := Pos{x, y}
 
 			switch c {
 			case ' ', '\t', '\n', '\r':
@@ -88,18 +87,24 @@ func NewLevelFromFile(filename string, player *Player) *Level {
 			case 'd':
 				t.OverlayRune = DownStair
 				t.Rune = Pending
+			case 's':
+				level.Items[pos] = append(level.Items[pos], NewSword(pos))
+				t.Rune = Pending
+			case 'h':
+				level.Items[pos] = append(level.Items[pos], NewHelmet(pos))
+				t.Rune = Pending
 			case '@':
-				level.Player.Pos = Pos{x, y}
+				level.Player.Pos = pos
 				t.Rune = Pending
 			case 'R':
-				m := NewRat(Pos{x, y})
+				m := NewRat(pos)
 				level.Monsters = append(level.Monsters, m)
-				level.AliveMonstersPos[Pos{x, y}] = m
+				level.AliveMonstersPos[pos] = m
 				t.Rune = Pending
 			case 'S':
-				m := NewSpider(Pos{x, y})
+				m := NewSpider(pos)
 				level.Monsters = append(level.Monsters, m)
-				level.AliveMonstersPos[Pos{x, y}] = m
+				level.AliveMonstersPos[pos] = m
 				t.Rune = Pending
 			default:
 				panic("Invalid character in the map: " + string(c))
@@ -116,6 +121,18 @@ func NewLevelFromFile(filename string, player *Player) *Level {
 		}
 	}
 	return level
+}
+
+func (level *Level) MoveItem(itemToMove *Item, character *Character) {
+	pos := character.Pos
+	items := level.Items[pos]
+	for i, item := range items {
+		if item == itemToMove {
+			level.Items[pos] = append(items[:i], items[i+1:]...)
+			character.Items = append(character.Items, itemToMove)
+			return
+		}
+	}
 }
 
 func (level *Level) inRange(pos Pos) bool {
@@ -217,7 +234,7 @@ func (level *Level) checkDoor(pos Pos) {
 	switch t.OverlayRune {
 	case ClosedDoor:
 		level.Map[pos.Y][pos.X].OverlayRune = OpenedDoor
-		level.LastEvent = DoorOpen
+		level.LastEvents = append(level.LastEvents, DoorOpen)
 	}
 }
 
