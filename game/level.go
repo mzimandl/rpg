@@ -25,6 +25,7 @@ const (
 	DoorOpen
 	Attack
 	Portal
+	PickUp
 )
 
 type LevelPos struct {
@@ -133,6 +134,7 @@ func (level *Level) MoveItem(itemToMove *Item, character *Character) {
 			return
 		}
 	}
+	panic("Trying to move wrong item")
 }
 
 func (level *Level) inRange(pos Pos) bool {

@@ -249,7 +249,7 @@ func (ui *ui) draw(level *game.Level) {
 	ui.drawPlayer(level, offsetX, offsetY)
 
 	ui.drawInventory(level)
-	ui.drawPresentItems(level, 0, 3*ui.winHeight/4-32)
+	ui.drawGroundItems(level, 0, 3*ui.winHeight/4-32)
 
 	var textPosY int32 = 0
 	ui.drawBox(0, 3*ui.winHeight/4, ui.winWidth/4, ui.winHeight/4, sdl.Color{64, 64, 64, 192})
@@ -347,11 +347,15 @@ func (ui *ui) drawItems(level *game.Level, offsetX, offsetY int32) {
 	}
 }
 
-func (ui *ui) drawPresentItems(level *game.Level, x, y int32) {
+func (ui *ui) getGroundItemRect(index int, x, y int32) *sdl.Rect {
+	return &sdl.Rect{int32(index*32) + x, y, 32, 32}
+}
+
+func (ui *ui) drawGroundItems(level *game.Level, x, y int32) {
 	for i, item := range level.Items[level.Player.Pos] {
-		itemSrcRect := ui.textureIndex[item.Rune][0]
-		itemDstRect := sdl.Rect{int32(i*32) + x, y, 32, 32}
-		ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &itemDstRect)
+		itemSrcRect := &ui.textureIndex[item.Rune][0]
+		itemDstRect := ui.getGroundItemRect(i, x, y)
+		ui.renderer.Copy(ui.textureAtlas, itemSrcRect, itemDstRect)
 	}
 }
 
@@ -386,7 +390,9 @@ func (ui *ui) keyPressed(scancode int) bool {
 func (ui *ui) Run() {
 	currentLevel := <-ui.levelChan
 	ui.draw(currentLevel)
-	input := game.Input{game.None}
+
+	mouseState := NewMouseState()
+	input := game.Input{game.None, nil}
 
 	for {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
@@ -396,6 +402,17 @@ func (ui *ui) Run() {
 			case *sdl.WindowEvent:
 				if e.Event == sdl.WINDOWEVENT_CLOSE {
 					input.Typ = game.QuitGame
+				}
+			}
+		}
+
+		mouseState.update()
+		if mouseState.leftClicked() {
+			for i, item := range currentLevel.Items[currentLevel.Player.Pos] {
+				itemDstRect := ui.getGroundItemRect(i, 0, 3*ui.winHeight/4-32)
+				if mouseState.onArea(itemDstRect) {
+					input.Typ = game.TakeItem
+					input.Item = item
 				}
 			}
 		}

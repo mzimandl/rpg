@@ -42,19 +42,18 @@ type InputType int
 
 const (
 	None InputType = iota
-
 	Up
 	Down
 	Left
 	Right
-
 	TakeAll
-
+	TakeItem
 	QuitGame
 )
 
 type Input struct {
-	Typ InputType
+	Typ  InputType
+	Item *Item
 }
 
 type Pos struct {
@@ -162,14 +161,15 @@ func (game *Game) handleInput(input *Input) {
 	case Right:
 		newPos := Pos{p.X + 1, p.Y}
 		game.resolveMovement(newPos)
+	case TakeItem:
+		game.CurrentLevel.MoveItem(input.Item, &game.Player.Character)
+		game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, PickUp)
 	case TakeAll:
-		items, itemsExists := game.CurrentLevel.Items[game.Player.Pos]
-		if itemsExists {
-			for _, item := range items {
-				game.CurrentLevel.MoveItem(item, &game.Player.Character)
-				game.CurrentLevel.addEvent("You took item: " + item.Name)
-			}
+		for _, item := range game.CurrentLevel.Items[game.Player.Pos] {
+			game.CurrentLevel.MoveItem(item, &game.Player.Character)
+			game.CurrentLevel.addEvent("You took item: " + item.Name)
 		}
+		game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, PickUp)
 	}
 }
 
