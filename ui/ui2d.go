@@ -12,7 +12,15 @@ import (
 	"github.com/veandco/go-sdl2/ttf"
 )
 
+type uiState int
+
+const (
+	UIMain uiState = iota
+	UIInventory
+)
+
 type ui struct {
+	state             uiState
 	winWidth          int32
 	winHeight         int32
 	renderer          *sdl.Renderer
@@ -90,6 +98,7 @@ func Destroy() {
 func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	var err error = nil
 	ui := &ui{
+		state:     UIMain,
 		winWidth:  1280,
 		winHeight: 720,
 		inputChan: inputChan,
@@ -238,13 +247,11 @@ func (ui *ui) handleSrolling(level *game.Level) (int32, int32) {
 
 func (ui *ui) draw(level *game.Level) {
 	offsetX, offsetY := ui.handleSrolling(level)
-
 	ui.r.Seed(1)
-	ui.renderer.Clear()
 
 	ui.drawTiles(level, offsetX, offsetY)
 	ui.drawDeadMonsters(level, offsetX, offsetY)
-	ui.drawItems(level, offsetX, offsetY)
+	ui.drawItemsTile(level, offsetX, offsetY)
 	ui.drawMonsters(level, offsetX, offsetY)
 	ui.drawPlayer(level, offsetX, offsetY)
 
@@ -268,8 +275,6 @@ func (ui *ui) draw(level *game.Level) {
 		ui.renderer.Copy(text, nil, &sdl.Rect{4, ui.winHeight - textPosY - h, w, h})
 		textPosY += h
 	}
-
-	ui.renderer.Present()
 }
 
 func (ui *ui) getRandomTile(tile game.Tile) sdl.Rect {
@@ -333,7 +338,7 @@ func (ui *ui) drawMonsters(level *game.Level, offsetX, offsetY int32) {
 	}
 }
 
-func (ui *ui) drawItems(level *game.Level, offsetX, offsetY int32) {
+func (ui *ui) drawItemsTile(level *game.Level, offsetX, offsetY int32) {
 	for _, items := range level.Items {
 		side := int32(32 / math.Sqrt(float64(len(items))))
 		diff := float64(32-side) / float64(len(items))
@@ -365,6 +370,10 @@ func (ui *ui) drawInventory(level *game.Level) {
 		itemDstRect := sdl.Rect{ui.winWidth - 32, int32(32 * i), 32, 32}
 		ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &itemDstRect)
 	}
+}
+
+func (ui *ui) drawInventoryBox() {
+	ui.drawBox(50, 50, 500, 500, sdl.Color{255, 0, 0, 128})
 }
 
 func (ui *ui) drawPlayer(level *game.Level, offsetX, offsetY int32) {
@@ -430,6 +439,12 @@ func (ui *ui) Run() {
 			input.Typ = game.Right
 		} else if ui.keyPressed(sdl.SCANCODE_T) {
 			input.Typ = game.TakeAll
+		} else if ui.keyPressed(sdl.SCANCODE_I) {
+			if ui.state != UIInventory {
+				ui.state = UIInventory
+			} else {
+				ui.state = UIMain
+			}
 		}
 		for i, v := range ui.keyboardState {
 			ui.prevKeyboardState[i] = v
@@ -452,10 +467,16 @@ func (ui *ui) Run() {
 						playRandomSound(ui.sounds.doorOpen, 10)
 					}
 				}
-				ui.draw(currentLevel)
 			}
 			input.Typ = game.None
 		}
+
+		ui.renderer.Clear()
+		ui.draw(currentLevel)
+		if ui.state == UIInventory {
+			ui.drawInventoryBox()
+		}
+		ui.renderer.Present()
 
 		sdl.Delay(10)
 	}
