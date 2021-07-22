@@ -28,6 +28,7 @@ const (
 	PickUp
 	DropDown
 	Equip
+	TakeOff
 )
 
 type LevelPos struct {

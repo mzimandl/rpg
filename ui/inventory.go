@@ -79,7 +79,7 @@ func (ui *ui) getWeaponSlotRect(itemSize int32) *sdl.Rect {
 	return &sdl.Rect{invRect.X + 2*invRect.W/7 - itemSize/2, invRect.Y + 2*invRect.H/9, itemSize, itemSize}
 }
 
-func (ui *ui) CheckDroppedItem() *game.Item {
+func (ui *ui) checkDroppedItem() *game.Item {
 	invRect := ui.getInventoryRectangle()
 	if !ui.mouseState.onArea(invRect) {
 		return ui.draggedItem
@@ -87,7 +87,7 @@ func (ui *ui) CheckDroppedItem() *game.Item {
 	return nil
 }
 
-func (ui *ui) CheckEquippedItem(itemSize int32) *game.Item {
+func (ui *ui) checkEquippedItem(itemSize int32) *game.Item {
 	var slot *sdl.Rect
 
 	switch ui.draggedItem.Typ {
@@ -101,6 +101,15 @@ func (ui *ui) CheckEquippedItem(itemSize int32) *game.Item {
 
 	if ui.mouseState.onArea(slot) {
 		return ui.draggedItem
+	}
+	return nil
+}
+
+func (ui *ui) checkTakeOffItem(level *game.Level, itemSize int32) *game.Item {
+	if ui.mouseState.onArea(ui.getHelmetSlotRect(itemSize)) {
+		return level.Player.Helmet
+	} else if ui.mouseState.onArea(ui.getWeaponSlotRect(itemSize)) {
+		return level.Player.Weapon
 	}
 	return nil
 }

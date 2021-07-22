@@ -50,6 +50,7 @@ const (
 	TakeItem
 	DropItem
 	EquipItem
+	TakeOffItem
 	QuitGame
 )
 
@@ -177,6 +178,9 @@ func (game *Game) handleInput(input *Input) {
 	case EquipItem:
 		game.Player.Equip(input.Item)
 		game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, Equip)
+	case TakeOffItem:
+		game.Player.TakeOff(input.Item)
+		game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, TakeOff)
 	}
 }
 

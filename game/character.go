@@ -82,7 +82,7 @@ func (c *Character) Equip(itemToEquip *Item) {
 				}
 				c.Weapon = itemToEquip
 			default:
-				panic("Unequipable item")
+				return
 			}
 
 			if replace != nil {
@@ -94,4 +94,17 @@ func (c *Character) Equip(itemToEquip *Item) {
 		}
 	}
 	panic("Missing item to equip")
+}
+
+func (c *Character) TakeOff(itemToTakeOf *Item) {
+	switch itemToTakeOf {
+	case c.Helmet:
+		c.Helmet = nil
+	case c.Weapon:
+		c.Weapon = nil
+	default:
+		panic("Wrong item to take off")
+	}
+
+	c.Items = append(c.Items, itemToTakeOf)
 }

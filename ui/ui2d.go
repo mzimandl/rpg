@@ -418,17 +418,28 @@ func (ui *ui) Run() {
 					ui.draggedItem = item
 				}
 			} else if ui.mouseState.leftUnclicked() && ui.draggedItem != nil {
-				item := ui.CheckDroppedItem()
+				item := ui.checkDroppedItem()
 				if item != nil {
 					input.Typ = game.DropItem
 					input.Item = item
 				}
-				item = ui.CheckEquippedItem(itemSize)
+				item = ui.checkEquippedItem(itemSize)
 				if item != nil {
 					input.Typ = game.EquipItem
 					input.Item = item
 				}
 				ui.draggedItem = nil
+			} else if ui.mouseState.rightClicked() {
+				item := ui.checkTakeOffItem(currentLevel, itemSize)
+				if item != nil {
+					input.Typ = game.TakeOffItem
+					input.Item = item
+				}
+				item = ui.checkInventoryItems(currentLevel, itemSize)
+				if item != nil {
+					input.Typ = game.DropItem
+					input.Item = item
+				}
 			}
 		}
 
@@ -443,7 +454,11 @@ func (ui *ui) Run() {
 
 		ui.keyboardState = sdl.GetKeyboardState()
 		if ui.keyPressed(sdl.SCANCODE_ESCAPE) {
-			input.Typ = game.QuitGame
+			if ui.state == UIInventory {
+				ui.state = UIMain
+			} else {
+				input.Typ = game.QuitGame
+			}
 		} else if ui.keyPressed(sdl.SCANCODE_UP) {
 			input.Typ = game.Up
 		} else if ui.keyPressed(sdl.SCANCODE_DOWN) {
