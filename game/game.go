@@ -48,6 +48,7 @@ const (
 	Right
 	TakeAll
 	TakeItem
+	DropItem
 	QuitGame
 )
 
@@ -164,6 +165,9 @@ func (game *Game) handleInput(input *Input) {
 	case TakeItem:
 		game.CurrentLevel.MoveItem(input.Item, &game.Player.Character)
 		game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, PickUp)
+	case DropItem:
+		game.CurrentLevel.DropItem(input.Item, &game.Player.Character)
+		game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, DropDown)
 	case TakeAll:
 		for _, item := range game.CurrentLevel.Items[game.Player.Pos] {
 			game.CurrentLevel.MoveItem(item, &game.Player.Character)

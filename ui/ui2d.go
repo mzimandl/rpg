@@ -12,6 +12,8 @@ import (
 	"github.com/veandco/go-sdl2/ttf"
 )
 
+const itemSizeRatio = 0.033
+
 type uiState int
 
 const (
@@ -21,6 +23,7 @@ const (
 
 type ui struct {
 	state             uiState
+	draggedItem       *game.Item
 	winWidth          int32
 	winHeight         int32
 	renderer          *sdl.Renderer
@@ -32,7 +35,7 @@ type ui struct {
 	prevKeyboardState []uint8
 	centerX           int
 	centerY           int
-	r                 *rand.Rand
+	tileRandomizer    *rand.Rand
 	levelChan         chan *game.Level
 	inputChan         chan *game.Input
 	fonts             map[FontType]*ttf.Font
@@ -98,14 +101,14 @@ func Destroy() {
 func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	var err error = nil
 	ui := &ui{
-		state:     UIMain,
-		winWidth:  1280,
-		winHeight: 720,
-		inputChan: inputChan,
-		levelChan: levelChan,
-		r:         rand.New(rand.NewSource(1)),
-		centerX:   -1,
-		centerY:   -1,
+		state:          UIMain,
+		winWidth:       1280,
+		winHeight:      720,
+		inputChan:      inputChan,
+		levelChan:      levelChan,
+		tileRandomizer: rand.New(rand.NewSource(1)),
+		centerX:        -1,
+		centerY:        -1,
 	}
 
 	ui.window, err = sdl.CreateWindow("RPG!!!", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED, ui.winWidth, ui.winHeight, sdl.WINDOW_SHOWN)
@@ -117,7 +120,7 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	if err != nil {
 		panic(err)
 	}
-	sdl.SetHint(sdl.HINT_RENDER_SCALE_QUALITY, "1")
+	// sdl.SetHint(sdl.HINT_RENDER_SCALE_QUALITY, "1")
 
 	ui.fonts = make(map[FontType]*ttf.Font)
 	ui.fonts[FontSmall], err = ttf.OpenFont("ui/assets/Kingthings_Foundation.ttf", int(16*float64(ui.winWidth)/1280))
@@ -221,7 +224,7 @@ func (ui *ui) Destroy() {
 	ui.window.Destroy()
 }
 
-func (ui *ui) handleSrolling(level *game.Level) (int32, int32) {
+func (ui *ui) calculateOffset(level *game.Level) (int32, int32) {
 	if ui.centerX == -1 || ui.centerY == -1 {
 		ui.centerX = level.Player.X
 		ui.centerY = level.Player.Y
@@ -245,41 +248,20 @@ func (ui *ui) handleSrolling(level *game.Level) (int32, int32) {
 	return offsetX, offsetY
 }
 
-func (ui *ui) draw(level *game.Level) {
-	offsetX, offsetY := ui.handleSrolling(level)
-	ui.r.Seed(1)
+func (ui *ui) drawLevel(level *game.Level) {
+	offsetX, offsetY := ui.calculateOffset(level)
+	ui.tileRandomizer.Seed(1)
 
 	ui.drawTiles(level, offsetX, offsetY)
 	ui.drawDeadMonsters(level, offsetX, offsetY)
 	ui.drawItemsTile(level, offsetX, offsetY)
 	ui.drawMonsters(level, offsetX, offsetY)
 	ui.drawPlayer(level, offsetX, offsetY)
-
-	ui.drawInventory(level)
-	ui.drawGroundItems(level, 0, 3*ui.winHeight/4-32)
-
-	var textPosY int32 = 0
-	ui.drawBox(0, 3*ui.winHeight/4, ui.winWidth/4, ui.winHeight/4, sdl.Color{64, 64, 64, 192})
-	for i := len(level.Events) - 1; i >= 0; i-- {
-		text := ui.stringToTexture(level.Events[i], FontSmall)
-		text.SetColorMod(255, 0, 0)
-		_, _, w, h, err := text.Query()
-
-		if textPosY+h > int32(ui.winHeight/4) {
-			break
-		}
-
-		if err != nil {
-			panic(err)
-		}
-		ui.renderer.Copy(text, nil, &sdl.Rect{4, ui.winHeight - textPosY - h, w, h})
-		textPosY += h
-	}
 }
 
 func (ui *ui) getRandomTile(tile game.Tile) sdl.Rect {
 	srcRects := ui.textureIndex[tile.Rune]
-	return srcRects[ui.r.Intn(len(srcRects))]
+	return srcRects[ui.tileRandomizer.Intn(len(srcRects))]
 }
 
 func (ui *ui) drawTiles(level *game.Level, offsetX, offsetY int32) {
@@ -352,34 +334,66 @@ func (ui *ui) drawItemsTile(level *game.Level, offsetX, offsetY int32) {
 	}
 }
 
-func (ui *ui) getGroundItemRect(index int, x, y int32) *sdl.Rect {
-	return &sdl.Rect{int32(index*32) + x, y, 32, 32}
-}
-
-func (ui *ui) drawGroundItems(level *game.Level, x, y int32) {
-	for i, item := range level.Items[level.Player.Pos] {
-		itemSrcRect := &ui.textureIndex[item.Rune][0]
-		itemDstRect := ui.getGroundItemRect(i, x, y)
-		ui.renderer.Copy(ui.textureAtlas, itemSrcRect, itemDstRect)
-	}
-}
-
-func (ui *ui) drawInventory(level *game.Level) {
-	for i, item := range level.Player.Items {
-		itemSrcRect := ui.textureIndex[item.Rune][0]
-		itemDstRect := sdl.Rect{ui.winWidth - 32, int32(32 * i), 32, 32}
-		ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &itemDstRect)
-	}
-}
-
-func (ui *ui) drawInventoryBox() {
-	ui.drawBox(50, 50, 500, 500, sdl.Color{255, 0, 0, 128})
-}
-
 func (ui *ui) drawPlayer(level *game.Level, offsetX, offsetY int32) {
 	playerSrcRect := ui.textureIndex[level.Player.Rune][0]
 	playerDstRect := sdl.Rect{offsetX + int32(level.Player.X)*32, offsetY + int32(level.Player.Y)*32, 32, 32}
 	ui.renderer.Copy(ui.textureAtlas, &playerSrcRect, &playerDstRect)
+}
+
+func (ui *ui) drawUI(level *game.Level) {
+	ui.drawGroundItems(level, 0, 3*ui.winHeight/4)
+	var textPosY int32 = 0
+	ui.drawBox(0, 3*ui.winHeight/4, ui.winWidth/4, ui.winHeight/4, sdl.Color{64, 64, 64, 192})
+	for i := len(level.Events) - 1; i >= 0; i-- {
+		text := ui.stringToTexture(level.Events[i], FontSmall)
+		text.SetColorMod(255, 0, 0)
+		_, _, w, h, err := text.Query()
+
+		if textPosY+h > int32(ui.winHeight/4) {
+			break
+		}
+
+		if err != nil {
+			panic(err)
+		}
+		ui.renderer.Copy(text, nil, &sdl.Rect{4, ui.winHeight - textPosY - h, w, h})
+		textPosY += h
+	}
+}
+
+func (ui *ui) getGroundItemRect(index int, x, y, itemSize int32) *sdl.Rect {
+	return &sdl.Rect{int32(index)*itemSize + x, y - itemSize, itemSize, itemSize}
+}
+
+func (ui *ui) drawGroundItems(level *game.Level, x, y int32) {
+	itemSize := int32(float32(ui.winWidth) * itemSizeRatio)
+	for i, item := range level.Items[level.Player.Pos] {
+		itemSrcRect := &ui.textureIndex[item.Rune][0]
+		itemDstRect := ui.getGroundItemRect(i, x, y, itemSize)
+		ui.renderer.Copy(ui.textureAtlas, itemSrcRect, itemDstRect)
+	}
+}
+
+func (ui *ui) drawInventory(level *game.Level, mouseState *mouseState) {
+	invRect := ui.getInventoryRectangle()
+	ui.drawBox(invRect.X, invRect.Y, invRect.W, invRect.H, sdl.Color{149, 84, 19, 200})
+	playerSrcRect := ui.textureIndex[level.Player.Rune][0]
+	ui.renderer.Copy(ui.textureAtlas, &playerSrcRect, &sdl.Rect{invRect.X + invRect.W/4, invRect.Y, invRect.W / 2, invRect.H / 2})
+	itemSize := int32(float32(ui.winWidth) * itemSizeRatio)
+	for i, item := range level.Player.Items {
+		itemSrcRect := &ui.textureIndex[item.Rune][0]
+		var itemDstRect *sdl.Rect
+		if item == ui.draggedItem {
+			itemDstRect = &sdl.Rect{mouseState.x, mouseState.y, itemSize, itemSize}
+		} else {
+			itemDstRect = ui.getInventoryItemRect(i, invRect.X, invRect.Y+invRect.H, itemSize)
+		}
+		ui.renderer.Copy(ui.textureAtlas, itemSrcRect, itemDstRect)
+	}
+}
+
+func (ui *ui) getInventoryItemRect(index int, x, y, itemSize int32) *sdl.Rect {
+	return &sdl.Rect{int32(index)*itemSize + x, y - itemSize, itemSize, itemSize}
 }
 
 func (ui *ui) drawBox(x, y, w, h int32, color sdl.Color) {
@@ -396,12 +410,39 @@ func (ui *ui) keyPressed(scancode int) bool {
 	return ui.keyboardState[scancode] != 0 && ui.prevKeyboardState[scancode] == 0
 }
 
-func (ui *ui) Run() {
-	currentLevel := <-ui.levelChan
-	ui.draw(currentLevel)
+func (ui *ui) checkGroundItems(level *game.Level, mouseState *mouseState, itemSize int32) *game.Item {
+	for i, item := range level.Items[level.Player.Pos] {
+		itemDstRect := ui.getGroundItemRect(i, 0, 3*ui.winHeight/4, itemSize)
+		if mouseState.onArea(itemDstRect) {
+			return item
+		}
+	}
+	return nil
+}
 
+func (ui *ui) checkInventoryItems(level *game.Level, mouseState *mouseState, itemSize int32) *game.Item {
+	invRect := ui.getInventoryRectangle()
+	for i, item := range level.Player.Items {
+		itemDstRect := ui.getInventoryItemRect(i, invRect.X, invRect.Y+invRect.H, itemSize)
+		if mouseState.onArea(itemDstRect) {
+			return item
+		}
+	}
+	return nil
+}
+
+func (ui *ui) getInventoryRectangle() *sdl.Rect {
+	invWidth := int32(float64(ui.winWidth) * 0.4)
+	invHeight := int32(float64(ui.winHeight) * 0.75)
+	offsetX := (ui.winWidth - invWidth) / 2
+	offsetY := (ui.winHeight - invHeight) / 2
+	return &sdl.Rect{offsetX, offsetY, invWidth, invHeight}
+}
+
+func (ui *ui) Run() {
 	mouseState := NewMouseState()
 	input := game.Input{game.None, nil}
+	currentLevel := <-ui.levelChan
 
 	for {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
@@ -416,10 +457,28 @@ func (ui *ui) Run() {
 		}
 
 		mouseState.update()
-		if mouseState.leftClicked() {
-			for i, item := range currentLevel.Items[currentLevel.Player.Pos] {
-				itemDstRect := ui.getGroundItemRect(i, 0, 3*ui.winHeight/4-32)
-				if mouseState.onArea(itemDstRect) {
+		itemSize := int32(float32(ui.winWidth) * itemSizeRatio)
+		switch ui.state {
+		case UIInventory:
+			if mouseState.leftClicked() {
+				item := ui.checkInventoryItems(currentLevel, mouseState, itemSize)
+				if item != nil {
+					ui.draggedItem = item
+				}
+			}
+			if ui.draggedItem != nil && !mouseState.leftButton {
+				invRect := ui.getInventoryRectangle()
+				if !invRect.HasIntersection(&sdl.Rect{mouseState.x, mouseState.y, 1, 1}) {
+					input.Typ = game.DropItem
+					input.Item = ui.draggedItem
+				}
+				ui.draggedItem = nil
+			}
+
+		default:
+			if mouseState.leftClicked() {
+				item := ui.checkGroundItems(currentLevel, mouseState, itemSize)
+				if item != nil {
 					input.Typ = game.TakeItem
 					input.Item = item
 				}
@@ -472,9 +531,10 @@ func (ui *ui) Run() {
 		}
 
 		ui.renderer.Clear()
-		ui.draw(currentLevel)
+		ui.drawLevel(currentLevel)
+		ui.drawUI(currentLevel)
 		if ui.state == UIInventory {
-			ui.drawInventoryBox()
+			ui.drawInventory(currentLevel, mouseState)
 		}
 		ui.renderer.Present()
 

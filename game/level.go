@@ -26,6 +26,7 @@ const (
 	Attack
 	Portal
 	PickUp
+	DropDown
 )
 
 type LevelPos struct {
@@ -131,6 +132,20 @@ func (level *Level) MoveItem(itemToMove *Item, character *Character) {
 		if item == itemToMove {
 			level.Items[pos] = append(items[:i], items[i+1:]...)
 			character.Items = append(character.Items, itemToMove)
+			return
+		}
+	}
+	panic("Trying to move wrong item")
+}
+
+func (level *Level) DropItem(itemToMove *Item, character *Character) {
+	pos := character.Pos
+	items := character.Items
+	for i, item := range items {
+		if item == itemToMove {
+			item.Pos = pos
+			character.Items = append(character.Items[:i], character.Items[i+1:]...)
+			level.Items[pos] = append(level.Items[pos], itemToMove)
 			return
 		}
 	}
