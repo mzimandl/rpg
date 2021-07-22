@@ -36,8 +36,16 @@ func (mouseState *mouseState) leftClicked() bool {
 	return mouseState.leftButton && !mouseState.prevLeftButton
 }
 
+func (mouseState *mouseState) leftUnclicked() bool {
+	return !mouseState.leftButton && mouseState.prevLeftButton
+}
+
 func (mouseState *mouseState) rightClicked() bool {
 	return mouseState.rightButton && !mouseState.prevRightButton
+}
+
+func (mouseState *mouseState) rightUnclicked() bool {
+	return !mouseState.rightButton && mouseState.prevRightButton
 }
 
 func (mouseState *mouseState) onArea(rect *sdl.Rect) bool {

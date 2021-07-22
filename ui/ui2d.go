@@ -42,6 +42,8 @@ type ui struct {
 	textCache         map[TextCacheKey]*sdl.Texture
 	music             *mix.Music
 	sounds            sounds
+
+	mouseState *mouseState
 }
 
 type FontType int
@@ -146,6 +148,7 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	ui.whiteDot = getSinglePixelTexture(ui.renderer, sdl.Color{255, 255, 255, 255})
 	ui.whiteDot.SetBlendMode(sdl.BLENDMODE_BLEND)
 
+	ui.mouseState = NewMouseState()
 	ui.keyboardState = sdl.GetKeyboardState()
 	ui.prevKeyboardState = make([]uint8, len(ui.keyboardState))
 	for i, v := range ui.keyboardState {
@@ -343,7 +346,7 @@ func (ui *ui) drawPlayer(level *game.Level, offsetX, offsetY int32) {
 func (ui *ui) drawUI(level *game.Level) {
 	ui.drawGroundItems(level, 0, 3*ui.winHeight/4)
 	var textPosY int32 = 0
-	ui.drawBox(0, 3*ui.winHeight/4, ui.winWidth/4, ui.winHeight/4, sdl.Color{64, 64, 64, 192})
+	ui.drawBox(&sdl.Rect{0, 3 * ui.winHeight / 4, ui.winWidth / 4, ui.winHeight / 4}, sdl.Color{64, 64, 64, 192})
 	for i := len(level.Events) - 1; i >= 0; i-- {
 		text := ui.stringToTexture(level.Events[i], FontSmall)
 		text.SetColorMod(255, 0, 0)
@@ -374,73 +377,21 @@ func (ui *ui) drawGroundItems(level *game.Level, x, y int32) {
 	}
 }
 
-func (ui *ui) drawInventory(level *game.Level, mouseState *mouseState) {
-	invRect := ui.getInventoryRectangle()
-	ui.drawBox(invRect.X, invRect.Y, invRect.W, invRect.H, sdl.Color{149, 84, 19, 200})
-	playerSrcRect := ui.textureIndex[level.Player.Rune][0]
-	ui.renderer.Copy(ui.textureAtlas, &playerSrcRect, &sdl.Rect{invRect.X + invRect.W/4, invRect.Y, invRect.W / 2, invRect.H / 2})
-	itemSize := int32(float32(ui.winWidth) * itemSizeRatio)
-	for i, item := range level.Player.Items {
-		itemSrcRect := &ui.textureIndex[item.Rune][0]
-		var itemDstRect *sdl.Rect
-		if item == ui.draggedItem {
-			itemDstRect = &sdl.Rect{mouseState.x, mouseState.y, itemSize, itemSize}
-		} else {
-			itemDstRect = ui.getInventoryItemRect(i, invRect.X, invRect.Y+invRect.H, itemSize)
-		}
-		ui.renderer.Copy(ui.textureAtlas, itemSrcRect, itemDstRect)
-	}
-}
-
-func (ui *ui) getInventoryItemRect(index int, x, y, itemSize int32) *sdl.Rect {
-	return &sdl.Rect{int32(index)*itemSize + x, y - itemSize, itemSize, itemSize}
-}
-
-func (ui *ui) drawBox(x, y, w, h int32, color sdl.Color) {
+func (ui *ui) drawBox(rect *sdl.Rect, color sdl.Color) {
 	ui.whiteDot.SetColorMod(color.R, color.G, color.B)
 	ui.whiteDot.SetAlphaMod(color.A)
-	ui.renderer.Copy(ui.whiteDot, nil, &sdl.Rect{x, y, w, h})
-	ui.renderer.Copy(ui.whiteDot, nil, &sdl.Rect{x, y, 1, h})
-	ui.renderer.Copy(ui.whiteDot, nil, &sdl.Rect{x, y, w, 1})
-	ui.renderer.Copy(ui.whiteDot, nil, &sdl.Rect{x, y + h - 1, w, 1})
-	ui.renderer.Copy(ui.whiteDot, nil, &sdl.Rect{x + w - 1, y, 1, h})
+	ui.renderer.Copy(ui.whiteDot, nil, rect)
+	ui.renderer.Copy(ui.whiteDot, nil, &sdl.Rect{rect.X, rect.Y, 1, rect.H})
+	ui.renderer.Copy(ui.whiteDot, nil, &sdl.Rect{rect.X, rect.Y, rect.W, 1})
+	ui.renderer.Copy(ui.whiteDot, nil, &sdl.Rect{rect.X, rect.Y + rect.H - 1, rect.W, 1})
+	ui.renderer.Copy(ui.whiteDot, nil, &sdl.Rect{rect.X + rect.W - 1, rect.Y, 1, rect.H})
 }
 
 func (ui *ui) keyPressed(scancode int) bool {
 	return ui.keyboardState[scancode] != 0 && ui.prevKeyboardState[scancode] == 0
 }
 
-func (ui *ui) checkGroundItems(level *game.Level, mouseState *mouseState, itemSize int32) *game.Item {
-	for i, item := range level.Items[level.Player.Pos] {
-		itemDstRect := ui.getGroundItemRect(i, 0, 3*ui.winHeight/4, itemSize)
-		if mouseState.onArea(itemDstRect) {
-			return item
-		}
-	}
-	return nil
-}
-
-func (ui *ui) checkInventoryItems(level *game.Level, mouseState *mouseState, itemSize int32) *game.Item {
-	invRect := ui.getInventoryRectangle()
-	for i, item := range level.Player.Items {
-		itemDstRect := ui.getInventoryItemRect(i, invRect.X, invRect.Y+invRect.H, itemSize)
-		if mouseState.onArea(itemDstRect) {
-			return item
-		}
-	}
-	return nil
-}
-
-func (ui *ui) getInventoryRectangle() *sdl.Rect {
-	invWidth := int32(float64(ui.winWidth) * 0.4)
-	invHeight := int32(float64(ui.winHeight) * 0.75)
-	offsetX := (ui.winWidth - invWidth) / 2
-	offsetY := (ui.winHeight - invHeight) / 2
-	return &sdl.Rect{offsetX, offsetY, invWidth, invHeight}
-}
-
 func (ui *ui) Run() {
-	mouseState := NewMouseState()
 	input := game.Input{game.None, nil}
 	currentLevel := <-ui.levelChan
 
@@ -456,32 +407,37 @@ func (ui *ui) Run() {
 			}
 		}
 
-		mouseState.update()
+		ui.mouseState.update()
 		itemSize := int32(float32(ui.winWidth) * itemSizeRatio)
-		switch ui.state {
-		case UIInventory:
-			if mouseState.leftClicked() {
-				item := ui.checkInventoryItems(currentLevel, mouseState, itemSize)
+
+		// inventory dragging
+		if ui.state == UIInventory {
+			if ui.mouseState.leftClicked() {
+				item := ui.checkInventoryItems(currentLevel, itemSize)
 				if item != nil {
 					ui.draggedItem = item
 				}
-			}
-			if ui.draggedItem != nil && !mouseState.leftButton {
-				invRect := ui.getInventoryRectangle()
-				if !invRect.HasIntersection(&sdl.Rect{mouseState.x, mouseState.y, 1, 1}) {
+			} else if ui.mouseState.leftUnclicked() && ui.draggedItem != nil {
+				item := ui.CheckDroppedItem()
+				if item != nil {
 					input.Typ = game.DropItem
-					input.Item = ui.draggedItem
+					input.Item = item
+				}
+				item = ui.CheckEquippedItem(itemSize)
+				if item != nil {
+					input.Typ = game.EquipItem
+					input.Item = item
 				}
 				ui.draggedItem = nil
 			}
+		}
 
-		default:
-			if mouseState.leftClicked() {
-				item := ui.checkGroundItems(currentLevel, mouseState, itemSize)
-				if item != nil {
-					input.Typ = game.TakeItem
-					input.Item = item
-				}
+		// take item from the ground
+		if ui.mouseState.leftClicked() {
+			item := ui.checkGroundItems(currentLevel, itemSize)
+			if item != nil {
+				input.Typ = game.TakeItem
+				input.Item = item
 			}
 		}
 
@@ -534,7 +490,7 @@ func (ui *ui) Run() {
 		ui.drawLevel(currentLevel)
 		ui.drawUI(currentLevel)
 		if ui.state == UIInventory {
-			ui.drawInventory(currentLevel, mouseState)
+			ui.drawInventory(currentLevel)
 		}
 		ui.renderer.Present()
 

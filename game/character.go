@@ -4,24 +4,94 @@ import "strconv"
 
 type Character struct {
 	Entity
+
 	Hitpoints    int
 	Strength     int
 	Speed        float64
 	ActionPoints float64
 	SightRange   int
-	Items        []*Item
+
+	Items  []*Item
+	Helmet *Item
+	Weapon *Item
 }
 
-func (ch *Character) IsAlive() bool {
-	return ch.Hitpoints > 0
+func (c *Character) IsAlive() bool {
+	return c.Hitpoints > 0
 }
 
-func (ch *Character) Attack(ch2 *Character) string {
-	ch2.Hitpoints -= ch.Strength
-
-	if ch2.IsAlive() {
-		return ch.Name + " hits " + ch2.Name + " causing damage " + strconv.Itoa(ch.Strength)
-	} else {
-		return ch.Name + " killed " + ch2.Name
+func (c *Character) Attack(cToAttack *Character) string {
+	attackPower := c.Strength
+	if c.Weapon != nil {
+		attackPower = int(float64(attackPower) * c.Weapon.Power)
 	}
+	damage := attackPower
+	if cToAttack.Helmet != nil {
+		damage = int(float64(damage) * (1.0 - cToAttack.Helmet.Power))
+	}
+
+	cToAttack.Hitpoints -= damage
+	if cToAttack.IsAlive() {
+		return c.Name + " hits " + cToAttack.Name + " causing damage " + strconv.Itoa(damage)
+	} else {
+		return c.Name + " killed " + cToAttack.Name + " causing damage " + strconv.Itoa(damage)
+	}
+}
+
+func (c *Character) TakeItem(level *Level, itemToMove *Item) {
+	pos := c.Pos
+	items := level.Items[pos]
+	for i, item := range items {
+		if item == itemToMove {
+			level.Items[pos] = append(items[:i], items[i+1:]...)
+			c.Items = append(c.Items, itemToMove)
+			return
+		}
+	}
+	panic("Trying to take wrong item")
+}
+
+func (c *Character) DropItem(level *Level, itemToMove *Item) {
+	pos := c.Pos
+	items := c.Items
+	for i, item := range items {
+		if item == itemToMove {
+			item.Pos = pos
+			c.Items = append(c.Items[:i], c.Items[i+1:]...)
+			level.Items[pos] = append(level.Items[pos], itemToMove)
+			return
+		}
+	}
+	panic("Trying to drop wrong item")
+}
+
+func (c *Character) Equip(itemToEquip *Item) {
+	for i, item := range c.Items {
+		if item == itemToEquip {
+			var replace *Item
+
+			switch itemToEquip.Typ {
+			case Helmet:
+				if c.Helmet != nil {
+					replace = c.Helmet
+				}
+				c.Helmet = itemToEquip
+			case Weapon:
+				if c.Weapon != nil {
+					replace = c.Weapon
+				}
+				c.Weapon = itemToEquip
+			default:
+				panic("Unequipable item")
+			}
+
+			if replace != nil {
+				c.Items[i] = replace
+			} else {
+				c.Items = append(c.Items[:i], c.Items[i+1:]...)
+			}
+			return
+		}
+	}
+	panic("Missing item to equip")
 }
