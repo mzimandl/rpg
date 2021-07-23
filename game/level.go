@@ -23,6 +23,7 @@ type GameEvent int
 const (
 	Move GameEvent = iota
 	DoorOpen
+	DoorClose
 	Attack
 	Portal
 	PickUp
@@ -221,13 +222,26 @@ func (level *Level) bresenhamVisibility(start Pos, end Pos) {
 	}
 }
 
-func (level *Level) checkDoor(pos Pos) {
+func (level *Level) checkClosedDoor(pos Pos) bool {
 	t := level.Map[pos.Y][pos.X]
 	switch t.OverlayRune {
 	case ClosedDoor:
 		level.Map[pos.Y][pos.X].OverlayRune = OpenedDoor
 		level.LastEvents = append(level.LastEvents, DoorOpen)
+		return true
 	}
+	return false
+}
+
+func (level *Level) checkOpenedDoor(pos Pos) bool {
+	t := level.Map[pos.Y][pos.X]
+	switch t.OverlayRune {
+	case OpenedDoor:
+		level.Map[pos.Y][pos.X].OverlayRune = ClosedDoor
+		level.LastEvents = append(level.LastEvents, DoorClose)
+		return true
+	}
+	return false
 }
 
 func (level *Level) resetVisibility() {

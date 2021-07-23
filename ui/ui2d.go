@@ -3,7 +3,6 @@ package ui2d
 import (
 	"math/rand"
 	"rpg/game"
-	"strconv"
 
 	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/mix"
@@ -22,21 +21,23 @@ type ui struct {
 	state               uiState
 	winWidth, winHeight int32
 	placements          placements
+	centerX, centerY    int
 
-	draggedItem      *game.Item
-	renderer         *sdl.Renderer
-	window           *sdl.Window
-	textureAtlas     *sdl.Texture
-	whiteDot         *sdl.Texture
-	textureIndex     map[rune][]sdl.Rect
-	centerX, centerY int
-	tileRandomizer   *rand.Rand
-	levelChan        chan *game.Level
-	inputChan        chan *game.Input
-	fonts            map[FontType]*ttf.Font
-	textCache        map[TextCacheKey]*sdl.Texture
-	music            *mix.Music
-	sounds           sounds
+	renderer  *sdl.Renderer
+	window    *sdl.Window
+	levelChan chan *game.Level
+	inputChan chan *game.Input
+
+	tileRandomizer *rand.Rand
+	textureAtlas   *sdl.Texture
+	whiteDot       *sdl.Texture
+	textureIndex   map[rune][]sdl.Rect
+	fonts          map[FontType]*ttf.Font
+	textCache      map[TextCacheKey]*sdl.Texture
+	draggedItem    *game.Item
+
+	music  *mix.Music
+	sounds *sounds
 
 	keyboardState *keyboardState
 	mouseState    *mouseState
@@ -128,37 +129,14 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 		panic(err)
 	}
 	ui.music.Play(-1)
-
-	footstepBase := "ui/assets/sounds/footstep0"
-	for i := 0; i <= 9; i++ {
-		footstepFile := footstepBase + strconv.Itoa(i) + ".ogg"
-		chunk, err := mix.LoadWAV(footstepFile)
-		if err != nil {
-			panic(err)
-		}
-		ui.sounds.footstep = append(ui.sounds.footstep, chunk)
-	}
-	doorOpenBase := "ui/assets/sounds/doorOpen_"
-	for i := 1; i <= 2; i++ {
-		doorOpenFile := doorOpenBase + strconv.Itoa(i) + ".ogg"
-		chunk, err := mix.LoadWAV(doorOpenFile)
-		if err != nil {
-			panic(err)
-		}
-		ui.sounds.doorOpen = append(ui.sounds.doorOpen, chunk)
-	}
+	ui.sounds = loadSounds()
 
 	ui.recalculatePlacements()
 	return ui
 }
 
 func (ui *ui) Destroy() {
-	for _, chunk := range ui.sounds.doorOpen {
-		chunk.Free()
-	}
-	for _, chunk := range ui.sounds.footstep {
-		chunk.Free()
-	}
+	ui.sounds.Free()
 	ui.music.Free()
 	ui.textureAtlas.Destroy()
 	for _, texture := range ui.textCache {
@@ -169,30 +147,6 @@ func (ui *ui) Destroy() {
 	}
 	ui.renderer.Destroy()
 	ui.window.Destroy()
-}
-
-func (ui *ui) calculateOffset(level *game.Level) (int32, int32) {
-	if ui.centerX == -1 || ui.centerY == -1 {
-		ui.centerX = level.Player.X
-		ui.centerY = level.Player.Y
-	} else {
-		if level.Player.X > ui.centerX+5 {
-			ui.centerX = level.Player.X - 5
-		} else if level.Player.X < ui.centerX-5 {
-			ui.centerX = level.Player.X + 5
-		}
-
-		if level.Player.Y > ui.centerY+5 {
-			ui.centerY = level.Player.Y - 5
-		} else if level.Player.Y < ui.centerY-5 {
-			ui.centerY = level.Player.Y + 5
-		}
-	}
-
-	offsetX := (ui.winWidth / 2) - int32(ui.centerX)*32
-	offsetY := (ui.winHeight / 2) - int32(ui.centerY)*32
-
-	return offsetX, offsetY
 }
 
 func (ui *ui) drawLevel(level *game.Level) {
@@ -212,7 +166,7 @@ func (ui *ui) drawUI(level *game.Level) {
 }
 
 func (ui *ui) Run() {
-	input := game.Input{game.None, nil}
+	input := game.Input{game.INone, nil, game.DNone}
 	currentLevel := <-ui.levelChan
 
 	for {
@@ -222,11 +176,11 @@ func (ui *ui) Run() {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch e := event.(type) {
 			case *sdl.QuitEvent:
-				input.Typ = game.QuitGame
+				input.Typ = game.IQuitGame
 			case *sdl.WindowEvent:
 				switch e.Event {
 				case sdl.WINDOWEVENT_CLOSE:
-					input.Typ = game.QuitGame
+					input.Typ = game.IQuitGame
 				case sdl.WINDOWEVENT_RESIZED:
 					ui.winWidth, ui.winHeight = e.Data1, e.Data2
 					ui.recalculatePlacements()
@@ -244,24 +198,24 @@ func (ui *ui) Run() {
 			} else if ui.mouseState.leftUnclicked() && ui.draggedItem != nil {
 				item := ui.checkDroppedItem()
 				if item != nil {
-					input.Typ = game.DropItem
+					input.Typ = game.IDropItem
 					input.Item = item
 				}
 				item = ui.checkEquippedItem()
 				if item != nil {
-					input.Typ = game.EquipItem
+					input.Typ = game.IEquipItem
 					input.Item = item
 				}
 				ui.draggedItem = nil
 			} else if ui.mouseState.rightClicked() {
 				item := ui.checkTakeOffItem(currentLevel)
 				if item != nil {
-					input.Typ = game.TakeOffItem
+					input.Typ = game.ITakeOffItem
 					input.Item = item
 				}
 				item = ui.checkInventoryItems(currentLevel)
 				if item != nil {
-					input.Typ = game.DropItem
+					input.Typ = game.IDropItem
 					input.Item = item
 				}
 			}
@@ -271,7 +225,7 @@ func (ui *ui) Run() {
 		if ui.mouseState.leftClicked() {
 			item := ui.checkGroundItems(currentLevel)
 			if item != nil {
-				input.Typ = game.TakeItem
+				input.Typ = game.ITakeItem
 				input.Item = item
 			}
 		}
@@ -280,18 +234,38 @@ func (ui *ui) Run() {
 			if ui.state == UIInventory {
 				ui.state = UIMain
 			} else {
-				input.Typ = game.QuitGame
+				input.Typ = game.IQuitGame
 			}
 		} else if ui.keyboardState.pressed(sdl.SCANCODE_UP) {
-			input.Typ = game.Up
+			input.Direction = game.DUp
+			if ui.keyboardState.hold(sdl.SCANCODE_SPACE) {
+				input.Typ = game.IAction
+			} else {
+				input.Typ = game.IMove
+			}
 		} else if ui.keyboardState.pressed(sdl.SCANCODE_DOWN) {
-			input.Typ = game.Down
+			input.Direction = game.DDown
+			if ui.keyboardState.hold(sdl.SCANCODE_SPACE) {
+				input.Typ = game.IAction
+			} else {
+				input.Typ = game.IMove
+			}
 		} else if ui.keyboardState.pressed(sdl.SCANCODE_LEFT) {
-			input.Typ = game.Left
+			input.Direction = game.DLeft
+			if ui.keyboardState.hold(sdl.SCANCODE_SPACE) {
+				input.Typ = game.IAction
+			} else {
+				input.Typ = game.IMove
+			}
 		} else if ui.keyboardState.pressed(sdl.SCANCODE_RIGHT) {
-			input.Typ = game.Right
+			input.Direction = game.DRight
+			if ui.keyboardState.hold(sdl.SCANCODE_SPACE) {
+				input.Typ = game.IAction
+			} else {
+				input.Typ = game.IMove
+			}
 		} else if ui.keyboardState.pressed(sdl.SCANCODE_T) {
-			input.Typ = game.TakeAll
+			input.Typ = game.ITakeAll
 		} else if ui.keyboardState.pressed(sdl.SCANCODE_I) {
 			if ui.state != UIInventory {
 				ui.state = UIInventory
@@ -300,10 +274,10 @@ func (ui *ui) Run() {
 			}
 		}
 
-		if input.Typ != game.None {
+		if input.Typ != game.INone {
 			ui.inputChan <- &input
 			switch input.Typ {
-			case game.QuitGame:
+			case game.IQuitGame:
 				return
 			default:
 				currentLevel = <-ui.levelChan
@@ -315,10 +289,12 @@ func (ui *ui) Run() {
 						playRandomSound(ui.sounds.footstep, 10)
 					case game.DoorOpen:
 						playRandomSound(ui.sounds.doorOpen, 10)
+					case game.DoorClose:
+						playRandomSound(ui.sounds.doorClose, 10)
 					}
 				}
 			}
-			input.Typ = game.None
+			input.Typ = game.INone
 		}
 
 		ui.renderer.Clear()

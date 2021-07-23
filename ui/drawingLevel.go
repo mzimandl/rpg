@@ -12,6 +12,30 @@ func (ui *ui) getRandomTile(tile game.Tile) sdl.Rect {
 	return srcRects[ui.tileRandomizer.Intn(len(srcRects))]
 }
 
+func (ui *ui) calculateOffset(level *game.Level) (int32, int32) {
+	if ui.centerX == -1 || ui.centerY == -1 {
+		ui.centerX = level.Player.X
+		ui.centerY = level.Player.Y
+	} else {
+		if level.Player.X > ui.centerX+5 {
+			ui.centerX = level.Player.X - 5
+		} else if level.Player.X < ui.centerX-5 {
+			ui.centerX = level.Player.X + 5
+		}
+
+		if level.Player.Y > ui.centerY+5 {
+			ui.centerY = level.Player.Y - 5
+		} else if level.Player.Y < ui.centerY-5 {
+			ui.centerY = level.Player.Y + 5
+		}
+	}
+
+	offsetX := (ui.winWidth / 2) - int32(ui.centerX)*32
+	offsetY := (ui.winHeight / 2) - int32(ui.centerY)*32
+
+	return offsetX, offsetY
+}
+
 func (ui *ui) drawTiles(level *game.Level, offsetX, offsetY int32) {
 	for y, row := range level.Map {
 		for x, tile := range row {

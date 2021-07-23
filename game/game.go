@@ -41,22 +41,31 @@ func NewGame() *Game {
 type InputType int
 
 const (
-	None InputType = iota
-	Up
-	Down
-	Left
-	Right
-	TakeAll
-	TakeItem
-	DropItem
-	EquipItem
-	TakeOffItem
-	QuitGame
+	INone InputType = iota
+	IMove
+	IAction
+	ITakeAll
+	ITakeItem
+	IDropItem
+	IEquipItem
+	ITakeOffItem
+	IQuitGame
+)
+
+type DirectionType int
+
+const (
+	DNone DirectionType = iota
+	DUp
+	DDown
+	DLeft
+	DRight
 )
 
 type Input struct {
-	Typ  InputType
-	Item *Item
+	Typ       InputType
+	Item      *Item
+	Direction DirectionType
 }
 
 type Pos struct {
@@ -143,42 +152,69 @@ func (game *Game) resolveMovement(pos Pos) {
 		game.CurrentLevel.resetVisibility()
 		game.CurrentLevel.resolveVisibility()
 	} else {
-		game.CurrentLevel.checkDoor(pos)
+		game.CurrentLevel.checkClosedDoor(pos)
 		game.CurrentLevel.resetVisibility()
 		game.CurrentLevel.resolveVisibility()
+	}
+}
+
+func (game *Game) resolveAction(pos Pos) {
+	monster, exists := game.CurrentLevel.AliveMonstersPos[pos]
+	if exists {
+		event := game.Player.Attack(&monster.Character)
+		game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, Attack)
+		game.CurrentLevel.addEvent(event)
+		if !monster.IsAlive() {
+			monster.Kill(game.CurrentLevel)
+		}
+		if !game.Player.IsAlive() {
+			game.CurrentLevel.addEvent("DED")
+		}
+	} else {
+		if game.CurrentLevel.checkClosedDoor(pos) || game.CurrentLevel.checkOpenedDoor(pos) {
+			game.CurrentLevel.resetVisibility()
+			game.CurrentLevel.resolveVisibility()
+		}
 	}
 }
 
 func (game *Game) handleInput(input *Input) {
 	p := game.Player
 	switch input.Typ {
-	case Up:
-		newPos := Pos{p.X, p.Y - 1}
-		game.resolveMovement(newPos)
-	case Down:
-		newPos := Pos{p.X, p.Y + 1}
-		game.resolveMovement(newPos)
-	case Left:
-		newPos := Pos{p.X - 1, p.Y}
-		game.resolveMovement(newPos)
-	case Right:
-		newPos := Pos{p.X + 1, p.Y}
-		game.resolveMovement(newPos)
-	case TakeItem:
+	case IMove, IAction:
+		var newPos Pos
+		switch input.Direction {
+		case DUp:
+			newPos = Pos{p.X, p.Y - 1}
+		case DDown:
+			newPos = Pos{p.X, p.Y + 1}
+		case DLeft:
+			newPos = Pos{p.X - 1, p.Y}
+		case DRight:
+			newPos = Pos{p.X + 1, p.Y}
+		}
+
+		switch input.Typ {
+		case IMove:
+			game.resolveMovement(newPos)
+		case IAction:
+			game.resolveAction(newPos)
+		}
+	case ITakeItem:
 		game.Player.TakeItem(game.CurrentLevel, input.Item)
 		game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, PickUp)
-	case DropItem:
+	case IDropItem:
 		game.Player.DropItem(game.CurrentLevel, input.Item)
 		game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, DropDown)
-	case TakeAll:
+	case ITakeAll:
 		for _, item := range game.CurrentLevel.Items[game.Player.Pos] {
 			game.Player.TakeItem(game.CurrentLevel, item)
 		}
 		game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, PickUp)
-	case EquipItem:
+	case IEquipItem:
 		game.Player.Equip(input.Item)
 		game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, Equip)
-	case TakeOffItem:
+	case ITakeOffItem:
 		game.Player.TakeOff(input.Item)
 		game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, TakeOff)
 	}
@@ -190,7 +226,7 @@ func (game *Game) Run() {
 
 	for input := range game.InputChan {
 		game.CurrentLevel.LastEvents = make([]GameEvent, 0)
-		if input.Typ == QuitGame {
+		if input.Typ == IQuitGame {
 			return
 		}
 
