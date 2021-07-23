@@ -36,7 +36,7 @@ func (ui *ui) drawInventory(level *game.Level) {
 func (ui *ui) checkInventoryItems(level *game.Level) *game.Item {
 	for i, item := range level.Player.Items {
 		itemDstRect := ui.getInventoryItemRect(i)
-		if ui.mouseState.onArea(itemDstRect) {
+		if ui.mouseState.onRect(itemDstRect) {
 			return item
 		}
 	}
@@ -46,7 +46,7 @@ func (ui *ui) checkInventoryItems(level *game.Level) *game.Item {
 func (ui *ui) checkGroundItems(level *game.Level) *game.Item {
 	for i, item := range level.Items[level.Player.Pos] {
 		itemDstRect := ui.getGroundItemRect(i)
-		if ui.mouseState.onArea(itemDstRect) {
+		if ui.mouseState.onRect(itemDstRect) {
 			return item
 		}
 	}
@@ -54,7 +54,7 @@ func (ui *ui) checkGroundItems(level *game.Level) *game.Item {
 }
 
 func (ui *ui) checkDroppedItem() *game.Item {
-	if !ui.mouseState.onArea(ui.placements.inv) {
+	if !ui.mouseState.onRect(ui.placements.inv) {
 		return ui.draggedItem
 	}
 	return nil
@@ -72,16 +72,16 @@ func (ui *ui) checkEquippedItem() *game.Item {
 		return nil
 	}
 
-	if ui.mouseState.onArea(slot) {
+	if ui.mouseState.onRect(slot) {
 		return ui.draggedItem
 	}
 	return nil
 }
 
 func (ui *ui) checkTakeOffItem(level *game.Level) *game.Item {
-	if ui.mouseState.onArea(ui.placements.invCharHelmet) {
+	if ui.mouseState.onRect(ui.placements.invCharHelmet) {
 		return level.Player.Helmet
-	} else if ui.mouseState.onArea(ui.placements.invCharWeapon) {
+	} else if ui.mouseState.onRect(ui.placements.invCharWeapon) {
 		return level.Player.Weapon
 	}
 	return nil

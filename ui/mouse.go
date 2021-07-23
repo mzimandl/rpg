@@ -22,32 +22,32 @@ func NewMouseState() *mouseState {
 	}
 }
 
-func (mouseState *mouseState) update() {
-	mouseState.prevX, mouseState.prevY = mouseState.x, mouseState.y
-	mouseState.prevLeftButton, mouseState.prevRightButton = mouseState.leftButton, mouseState.rightButton
+func (ms *mouseState) update() {
+	ms.prevX, ms.prevY = ms.x, ms.y
+	ms.prevLeftButton, ms.prevRightButton = ms.leftButton, ms.rightButton
 
 	mouseX, mouseY, mouseButtonState := sdl.GetMouseState()
-	mouseState.leftButton = (mouseButtonState&sdl.ButtonLMask() != 0)
-	mouseState.rightButton = (mouseButtonState&sdl.ButtonRMask() != 0)
-	mouseState.x, mouseState.y = mouseX, mouseY
+	ms.leftButton = (mouseButtonState&sdl.ButtonLMask() != 0)
+	ms.rightButton = (mouseButtonState&sdl.ButtonRMask() != 0)
+	ms.x, ms.y = mouseX, mouseY
 }
 
-func (mouseState *mouseState) leftClicked() bool {
-	return mouseState.leftButton && !mouseState.prevLeftButton
+func (ms *mouseState) leftClicked() bool {
+	return ms.leftButton && !ms.prevLeftButton
 }
 
-func (mouseState *mouseState) leftUnclicked() bool {
-	return !mouseState.leftButton && mouseState.prevLeftButton
+func (ms *mouseState) leftUnclicked() bool {
+	return !ms.leftButton && ms.prevLeftButton
 }
 
-func (mouseState *mouseState) rightClicked() bool {
-	return mouseState.rightButton && !mouseState.prevRightButton
+func (ms *mouseState) rightClicked() bool {
+	return ms.rightButton && !ms.prevRightButton
 }
 
-func (mouseState *mouseState) rightUnclicked() bool {
-	return !mouseState.rightButton && mouseState.prevRightButton
+func (ms *mouseState) rightUnclicked() bool {
+	return !ms.rightButton && ms.prevRightButton
 }
 
-func (mouseState *mouseState) onArea(rect *sdl.Rect) bool {
-	return rect.HasIntersection(&sdl.Rect{mouseState.x, mouseState.y, 1, 1})
+func (ms *mouseState) onRect(rect *sdl.Rect) bool {
+	return rect.HasIntersection(&sdl.Rect{ms.x, ms.y, 1, 1})
 }

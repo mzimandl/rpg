@@ -1,7 +1,6 @@
 package ui2d
 
 import (
-	"math"
 	"math/rand"
 	"rpg/game"
 	"strconv"
@@ -24,48 +23,23 @@ type ui struct {
 	winWidth, winHeight int32
 	placements          placements
 
-	draggedItem       *game.Item
-	renderer          *sdl.Renderer
-	window            *sdl.Window
-	textureAtlas      *sdl.Texture
-	whiteDot          *sdl.Texture
-	textureIndex      map[rune][]sdl.Rect
-	keyboardState     []uint8
-	prevKeyboardState []uint8
-	centerX, centerY  int
-	tileRandomizer    *rand.Rand
-	levelChan         chan *game.Level
-	inputChan         chan *game.Input
-	fonts             map[FontType]*ttf.Font
-	textCache         map[TextCacheKey]*sdl.Texture
-	music             *mix.Music
-	sounds            sounds
+	draggedItem      *game.Item
+	renderer         *sdl.Renderer
+	window           *sdl.Window
+	textureAtlas     *sdl.Texture
+	whiteDot         *sdl.Texture
+	textureIndex     map[rune][]sdl.Rect
+	centerX, centerY int
+	tileRandomizer   *rand.Rand
+	levelChan        chan *game.Level
+	inputChan        chan *game.Input
+	fonts            map[FontType]*ttf.Font
+	textCache        map[TextCacheKey]*sdl.Texture
+	music            *mix.Music
+	sounds           sounds
 
-	mouseState *mouseState
-}
-
-type FontType int
-
-const (
-	FontSmall FontType = iota
-	FontMedium
-	FontLarge
-)
-
-type TextCacheKey struct {
-	fontType FontType
-	text     string
-}
-
-type sounds struct {
-	doorOpen []*mix.Chunk
-	footstep []*mix.Chunk
-}
-
-func playRandomSound(chunks []*mix.Chunk, volume int) {
-	chunkIndex := rand.Intn(len(chunks))
-	chunks[chunkIndex].Volume(volume)
-	chunks[chunkIndex].Play(-1, 0)
+	keyboardState *keyboardState
+	mouseState    *mouseState
 }
 
 func init() {
@@ -147,11 +121,7 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	ui.whiteDot.SetBlendMode(sdl.BLENDMODE_BLEND)
 
 	ui.mouseState = NewMouseState()
-	ui.keyboardState = sdl.GetKeyboardState()
-	ui.prevKeyboardState = make([]uint8, len(ui.keyboardState))
-	for i, v := range ui.keyboardState {
-		ui.prevKeyboardState[i] = v
-	}
+	ui.keyboardState = NewKeyboardState()
 
 	ui.music, err = mix.LoadMUS("ui/assets/dungeon002.ogg")
 	if err != nil {
@@ -180,31 +150,6 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 
 	ui.recalculatePlacements()
 	return ui
-}
-
-func (ui *ui) stringToTexture(s string, fontType FontType) *sdl.Texture {
-	font, exists := ui.fonts[fontType]
-	if exists {
-		textKey := TextCacheKey{fontType, s}
-		texture, exists := ui.textCache[textKey]
-		if exists {
-			return texture
-		}
-
-		fontSurface, err := font.RenderUTF8Blended(s, sdl.Color{255, 255, 255, 0})
-		if err != nil {
-			panic(err)
-		}
-		fontTexture, err := ui.renderer.CreateTextureFromSurface(fontSurface)
-		if err != nil {
-			panic(err)
-		}
-
-		ui.textCache[textKey] = fontTexture
-		return fontTexture
-	} else {
-		panic("Font type not found: " + strconv.Itoa(int(fontType)))
-	}
 }
 
 func (ui *ui) Destroy() {
@@ -261,132 +206,9 @@ func (ui *ui) drawLevel(level *game.Level) {
 	ui.drawPlayer(level, offsetX, offsetY)
 }
 
-func (ui *ui) getRandomTile(tile game.Tile) sdl.Rect {
-	srcRects := ui.textureIndex[tile.Rune]
-	return srcRects[ui.tileRandomizer.Intn(len(srcRects))]
-}
-
-func (ui *ui) drawTiles(level *game.Level, offsetX, offsetY int32) {
-	for y, row := range level.Map {
-		for x, tile := range row {
-			if tile.Rune != game.Blank {
-				srcRect := ui.getRandomTile(tile)
-				if tile.Visible || tile.Visited {
-					dstRect := sdl.Rect{offsetX + int32(x)*32, offsetY + int32(y)*32, 32, 32}
-					pos := game.Pos{x, y}
-					if level.Debug[pos] {
-						ui.textureAtlas.SetColorMod(128, 0, 0)
-					} else if tile.Visited && !tile.Visible {
-						ui.textureAtlas.SetColorMod(128, 128, 128)
-					} else {
-						ui.textureAtlas.SetColorMod(255, 255, 255)
-					}
-					ui.renderer.Copy(ui.textureAtlas, &srcRect, &dstRect)
-
-					if tile.OverlayRune != game.Blank {
-						srcRect = ui.textureIndex[tile.OverlayRune][0]
-						ui.renderer.Copy(ui.textureAtlas, &srcRect, &dstRect)
-					}
-				}
-			}
-		}
-	}
-}
-
-func (ui *ui) drawDeadMonsters(level *game.Level, offsetX, offsetY int32) {
-	for _, monster := range level.Monsters {
-		if !monster.IsAlive() {
-			if level.Map[monster.Y][monster.X].Visited {
-				if level.Map[monster.Y][monster.X].Visible {
-					ui.textureAtlas.SetColorMod(255, 64, 64)
-				} else {
-					ui.textureAtlas.SetColorMod(128, 32, 32)
-				}
-
-				monsterSrcRect := ui.textureIndex[monster.Rune][0]
-				monsterDstRect := sdl.Rect{offsetX + int32(monster.X)*32, offsetY + int32(monster.Y)*32, 32, 32}
-				ui.renderer.CopyEx(ui.textureAtlas, &monsterSrcRect, &monsterDstRect, 0, nil, sdl.FLIP_VERTICAL)
-			}
-		}
-	}
-	ui.textureAtlas.SetColorMod(255, 255, 255)
-}
-
-func (ui *ui) drawMonsters(level *game.Level, offsetX, offsetY int32) {
-	for _, monster := range level.Monsters {
-		if monster.IsAlive() && level.Map[monster.Y][monster.X].Visible {
-			monsterSrcRect := ui.textureIndex[monster.Rune][0]
-			monsterDstRect := sdl.Rect{offsetX + int32(monster.X)*32, offsetY + int32(monster.Y)*32, 32, 32}
-			ui.renderer.Copy(ui.textureAtlas, &monsterSrcRect, &monsterDstRect)
-		}
-	}
-}
-
-func (ui *ui) drawItemsTile(level *game.Level, offsetX, offsetY int32) {
-	for _, items := range level.Items {
-		side := int32(32 / math.Sqrt(float64(len(items))))
-		diff := float64(32-side) / float64(len(items))
-		for i, item := range items {
-			if level.Map[item.Y][item.X].Visible {
-				itemSrcRect := ui.textureIndex[item.Rune][0]
-				itemDstRect := sdl.Rect{offsetX + int32(item.X)*32 + int32(float64(i)*diff), offsetY + int32(item.Y)*32 + int32(float64(i)*diff), side, side}
-				ui.renderer.Copy(ui.textureAtlas, &itemSrcRect, &itemDstRect)
-			}
-		}
-	}
-}
-
-func (ui *ui) drawPlayer(level *game.Level, offsetX, offsetY int32) {
-	playerSrcRect := ui.textureIndex[level.Player.Rune][0]
-	playerDstRect := sdl.Rect{offsetX + int32(level.Player.X)*32, offsetY + int32(level.Player.Y)*32, 32, 32}
-	ui.renderer.Copy(ui.textureAtlas, &playerSrcRect, &playerDstRect)
-}
-
 func (ui *ui) drawUI(level *game.Level) {
 	ui.drawGroundItems(level, 0, 3*ui.winHeight/4)
 	ui.drawLog(level)
-}
-
-func (ui *ui) drawGroundItems(level *game.Level, x, y int32) {
-	for i, item := range level.Items[level.Player.Pos] {
-		itemSrcRect := &ui.textureIndex[item.Rune][0]
-		itemDstRect := ui.getGroundItemRect(i)
-		ui.renderer.Copy(ui.textureAtlas, itemSrcRect, itemDstRect)
-	}
-}
-
-func (ui *ui) drawLog(level *game.Level) {
-	var textPosY int32 = 0
-	ui.drawBox(ui.placements.log, sdl.Color{64, 64, 64, 192})
-	for i := len(level.Log) - 1; i >= 0; i-- {
-		text := ui.stringToTexture(level.Log[i], FontSmall)
-		text.SetColorMod(255, 0, 0)
-		_, _, w, h, err := text.Query()
-
-		if textPosY+h > int32(ui.winHeight/4) {
-			break
-		}
-
-		if err != nil {
-			panic(err)
-		}
-		ui.renderer.Copy(text, nil, &sdl.Rect{ui.placements.log.X + 4, ui.placements.log.Y + ui.placements.log.H - textPosY - h, w, h})
-		textPosY += h
-	}
-}
-
-func (ui *ui) drawBox(rect *sdl.Rect, color sdl.Color) {
-	ui.whiteDot.SetColorMod(color.R, color.G, color.B)
-	ui.whiteDot.SetAlphaMod(color.A)
-	ui.renderer.Copy(ui.whiteDot, nil, rect)
-	ui.renderer.Copy(ui.whiteDot, nil, &sdl.Rect{rect.X, rect.Y, 1, rect.H})
-	ui.renderer.Copy(ui.whiteDot, nil, &sdl.Rect{rect.X, rect.Y, rect.W, 1})
-	ui.renderer.Copy(ui.whiteDot, nil, &sdl.Rect{rect.X, rect.Y + rect.H - 1, rect.W, 1})
-	ui.renderer.Copy(ui.whiteDot, nil, &sdl.Rect{rect.X + rect.W - 1, rect.Y, 1, rect.H})
-}
-
-func (ui *ui) keyPressed(scancode int) bool {
-	return ui.keyboardState[scancode] != 0 && ui.prevKeyboardState[scancode] == 0
 }
 
 func (ui *ui) Run() {
@@ -394,6 +216,9 @@ func (ui *ui) Run() {
 	currentLevel := <-ui.levelChan
 
 	for {
+		ui.mouseState.update()
+		ui.keyboardState.update()
+
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
 			switch e := event.(type) {
 			case *sdl.QuitEvent:
@@ -408,8 +233,6 @@ func (ui *ui) Run() {
 				}
 			}
 		}
-
-		ui.mouseState.update()
 
 		// inventory dragging
 		if ui.state == UIInventory {
@@ -453,32 +276,28 @@ func (ui *ui) Run() {
 			}
 		}
 
-		ui.keyboardState = sdl.GetKeyboardState()
-		if ui.keyPressed(sdl.SCANCODE_ESCAPE) {
+		if ui.keyboardState.pressed(sdl.SCANCODE_ESCAPE) {
 			if ui.state == UIInventory {
 				ui.state = UIMain
 			} else {
 				input.Typ = game.QuitGame
 			}
-		} else if ui.keyPressed(sdl.SCANCODE_UP) {
+		} else if ui.keyboardState.pressed(sdl.SCANCODE_UP) {
 			input.Typ = game.Up
-		} else if ui.keyPressed(sdl.SCANCODE_DOWN) {
+		} else if ui.keyboardState.pressed(sdl.SCANCODE_DOWN) {
 			input.Typ = game.Down
-		} else if ui.keyPressed(sdl.SCANCODE_LEFT) {
+		} else if ui.keyboardState.pressed(sdl.SCANCODE_LEFT) {
 			input.Typ = game.Left
-		} else if ui.keyPressed(sdl.SCANCODE_RIGHT) {
+		} else if ui.keyboardState.pressed(sdl.SCANCODE_RIGHT) {
 			input.Typ = game.Right
-		} else if ui.keyPressed(sdl.SCANCODE_T) {
+		} else if ui.keyboardState.pressed(sdl.SCANCODE_T) {
 			input.Typ = game.TakeAll
-		} else if ui.keyPressed(sdl.SCANCODE_I) {
+		} else if ui.keyboardState.pressed(sdl.SCANCODE_I) {
 			if ui.state != UIInventory {
 				ui.state = UIInventory
 			} else {
 				ui.state = UIMain
 			}
-		}
-		for i, v := range ui.keyboardState {
-			ui.prevKeyboardState[i] = v
 		}
 
 		if input.Typ != game.None {
