@@ -18,6 +18,7 @@ const (
 	OpenedDoor        = '/'
 	UpStair           = 'u'
 	DownStair         = 'd'
+	StonePillar       = 'I'
 	Blank             = 0
 	Pending           = -1
 )
@@ -46,9 +47,9 @@ func (level *Level) generateTile(x, y int, c rune) {
 		t.canWalk = false
 	case ClosedDoor:
 		t.OverlayRune = ClosedDoor
+		t.Rune = Pending
 		t.canSee = false
 		t.canWalk = false
-		t.Rune = Pending
 	case OpenedDoor:
 		t.OverlayRune = OpenedDoor
 		t.Rune = Pending
@@ -58,6 +59,10 @@ func (level *Level) generateTile(x, y int, c rune) {
 	case DownStair:
 		t.OverlayRune = DownStair
 		t.Rune = Pending
+	case StonePillar:
+		t.OverlayRune = StonePillar
+		t.Rune = Pending
+		t.canWalk = false
 
 	case 's':
 		level.Items[pos] = append(level.Items[pos], NewSword(pos))

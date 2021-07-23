@@ -7,8 +7,8 @@ import (
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-func (ui *ui) getRandomTile(tile game.Tile) sdl.Rect {
-	srcRects := ui.textureIndex[tile.Rune]
+func (ui *ui) getRandomTile(r rune) sdl.Rect {
+	srcRects := ui.textureIndex[r]
 	return srcRects[ui.tileRandomizer.Intn(len(srcRects))]
 }
 
@@ -40,7 +40,11 @@ func (ui *ui) drawTiles(level *game.Level, offsetX, offsetY int32) {
 	for y, row := range level.Map {
 		for x, tile := range row {
 			if tile.Rune != game.Blank {
-				srcRect := ui.getRandomTile(tile)
+				srcRect := ui.getRandomTile(tile.Rune)
+				var srcOverlayRect sdl.Rect
+				if tile.OverlayRune != game.Blank {
+					srcOverlayRect = ui.getRandomTile(tile.OverlayRune)
+				}
 				if tile.Visible || tile.Visited {
 					dstRect := sdl.Rect{offsetX + int32(x)*32, offsetY + int32(y)*32, 32, 32}
 					pos := game.Pos{x, y}
@@ -54,8 +58,7 @@ func (ui *ui) drawTiles(level *game.Level, offsetX, offsetY int32) {
 					ui.renderer.Copy(ui.textureAtlas, &srcRect, &dstRect)
 
 					if tile.OverlayRune != game.Blank {
-						srcRect = ui.textureIndex[tile.OverlayRune][0]
-						ui.renderer.Copy(ui.textureAtlas, &srcRect, &dstRect)
+						ui.renderer.Copy(ui.textureAtlas, &srcOverlayRect, &dstRect)
 					}
 				}
 			}
