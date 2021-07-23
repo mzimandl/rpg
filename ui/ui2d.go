@@ -12,8 +12,6 @@ import (
 	"github.com/veandco/go-sdl2/ttf"
 )
 
-const itemSizeRatio = 0.033
-
 type uiState int
 
 const (
@@ -22,10 +20,11 @@ const (
 )
 
 type ui struct {
-	state             uiState
+	state               uiState
+	winWidth, winHeight int32
+	placements          placements
+
 	draggedItem       *game.Item
-	winWidth          int32
-	winHeight         int32
 	renderer          *sdl.Renderer
 	window            *sdl.Window
 	textureAtlas      *sdl.Texture
@@ -33,8 +32,7 @@ type ui struct {
 	textureIndex      map[rune][]sdl.Rect
 	keyboardState     []uint8
 	prevKeyboardState []uint8
-	centerX           int
-	centerY           int
+	centerX, centerY  int
 	tileRandomizer    *rand.Rand
 	levelChan         chan *game.Level
 	inputChan         chan *game.Input
@@ -113,7 +111,7 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 		centerY:        -1,
 	}
 
-	ui.window, err = sdl.CreateWindow("RPG!!!", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED, ui.winWidth, ui.winHeight, sdl.WINDOW_SHOWN)
+	ui.window, err = sdl.CreateWindow("RPG!!!", sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED, ui.winWidth, ui.winHeight, sdl.WINDOW_RESIZABLE)
 	if err != nil {
 		panic(err)
 	}
@@ -180,6 +178,7 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 		ui.sounds.doorOpen = append(ui.sounds.doorOpen, chunk)
 	}
 
+	ui.recalculatePlacements()
 	return ui
 }
 
@@ -345,10 +344,22 @@ func (ui *ui) drawPlayer(level *game.Level, offsetX, offsetY int32) {
 
 func (ui *ui) drawUI(level *game.Level) {
 	ui.drawGroundItems(level, 0, 3*ui.winHeight/4)
+	ui.drawLog(level)
+}
+
+func (ui *ui) drawGroundItems(level *game.Level, x, y int32) {
+	for i, item := range level.Items[level.Player.Pos] {
+		itemSrcRect := &ui.textureIndex[item.Rune][0]
+		itemDstRect := ui.getGroundItemRect(i)
+		ui.renderer.Copy(ui.textureAtlas, itemSrcRect, itemDstRect)
+	}
+}
+
+func (ui *ui) drawLog(level *game.Level) {
 	var textPosY int32 = 0
-	ui.drawBox(&sdl.Rect{0, 3 * ui.winHeight / 4, ui.winWidth / 4, ui.winHeight / 4}, sdl.Color{64, 64, 64, 192})
-	for i := len(level.Events) - 1; i >= 0; i-- {
-		text := ui.stringToTexture(level.Events[i], FontSmall)
+	ui.drawBox(ui.placements.log, sdl.Color{64, 64, 64, 192})
+	for i := len(level.Log) - 1; i >= 0; i-- {
+		text := ui.stringToTexture(level.Log[i], FontSmall)
 		text.SetColorMod(255, 0, 0)
 		_, _, w, h, err := text.Query()
 
@@ -359,21 +370,8 @@ func (ui *ui) drawUI(level *game.Level) {
 		if err != nil {
 			panic(err)
 		}
-		ui.renderer.Copy(text, nil, &sdl.Rect{4, ui.winHeight - textPosY - h, w, h})
+		ui.renderer.Copy(text, nil, &sdl.Rect{ui.placements.log.X + 4, ui.placements.log.Y + ui.placements.log.H - textPosY - h, w, h})
 		textPosY += h
-	}
-}
-
-func (ui *ui) getGroundItemRect(index int, x, y, itemSize int32) *sdl.Rect {
-	return &sdl.Rect{int32(index)*itemSize + x, y - itemSize, itemSize, itemSize}
-}
-
-func (ui *ui) drawGroundItems(level *game.Level, x, y int32) {
-	itemSize := int32(float32(ui.winWidth) * itemSizeRatio)
-	for i, item := range level.Items[level.Player.Pos] {
-		itemSrcRect := &ui.textureIndex[item.Rune][0]
-		itemDstRect := ui.getGroundItemRect(i, x, y, itemSize)
-		ui.renderer.Copy(ui.textureAtlas, itemSrcRect, itemDstRect)
 	}
 }
 
@@ -401,19 +399,22 @@ func (ui *ui) Run() {
 			case *sdl.QuitEvent:
 				input.Typ = game.QuitGame
 			case *sdl.WindowEvent:
-				if e.Event == sdl.WINDOWEVENT_CLOSE {
+				switch e.Event {
+				case sdl.WINDOWEVENT_CLOSE:
 					input.Typ = game.QuitGame
+				case sdl.WINDOWEVENT_RESIZED:
+					ui.winWidth, ui.winHeight = e.Data1, e.Data2
+					ui.recalculatePlacements()
 				}
 			}
 		}
 
 		ui.mouseState.update()
-		itemSize := int32(float32(ui.winWidth) * itemSizeRatio)
 
 		// inventory dragging
 		if ui.state == UIInventory {
 			if ui.mouseState.leftClicked() {
-				item := ui.checkInventoryItems(currentLevel, itemSize)
+				item := ui.checkInventoryItems(currentLevel)
 				if item != nil {
 					ui.draggedItem = item
 				}
@@ -423,19 +424,19 @@ func (ui *ui) Run() {
 					input.Typ = game.DropItem
 					input.Item = item
 				}
-				item = ui.checkEquippedItem(itemSize)
+				item = ui.checkEquippedItem()
 				if item != nil {
 					input.Typ = game.EquipItem
 					input.Item = item
 				}
 				ui.draggedItem = nil
 			} else if ui.mouseState.rightClicked() {
-				item := ui.checkTakeOffItem(currentLevel, itemSize)
+				item := ui.checkTakeOffItem(currentLevel)
 				if item != nil {
 					input.Typ = game.TakeOffItem
 					input.Item = item
 				}
-				item = ui.checkInventoryItems(currentLevel, itemSize)
+				item = ui.checkInventoryItems(currentLevel)
 				if item != nil {
 					input.Typ = game.DropItem
 					input.Item = item
@@ -445,7 +446,7 @@ func (ui *ui) Run() {
 
 		// take item from the ground
 		if ui.mouseState.leftClicked() {
-			item := ui.checkGroundItems(currentLevel, itemSize)
+			item := ui.checkGroundItems(currentLevel)
 			if item != nil {
 				input.Typ = game.TakeItem
 				input.Item = item

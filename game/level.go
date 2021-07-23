@@ -13,7 +13,7 @@ type Level struct {
 	AliveMonstersPos map[Pos]*Monster
 	Items            map[Pos][]*Item
 	Portals          map[Pos]*LevelPos
-	Events           []string
+	Log              []string
 	Debug            map[Pos]bool
 	LastEvents       []GameEvent
 }
@@ -304,9 +304,9 @@ func (level *Level) BfsFloor(start Pos) rune {
 }
 
 func (level *Level) addEvent(s string) {
-	level.Events = append(level.Events, s)
-	if len(level.Events) > 25 {
-		level.Events = level.Events[len(level.Events)-25:]
+	level.Log = append(level.Log, s)
+	if len(level.Log) > 25 {
+		level.Log = level.Log[len(level.Log)-25:]
 	}
 }
 
