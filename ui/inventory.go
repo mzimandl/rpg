@@ -31,6 +31,8 @@ func (ui *ui) checkEquippedItems(level *game.Level) *game.Item {
 		return level.Player.Helmet
 	} else if ui.mouseState.onRect(ui.placements.invCharWeapon) {
 		return level.Player.Weapon
+	} else if ui.mouseState.onRect(ui.placements.invCharArmor) {
+		return level.Player.Armor
 	}
 	return nil
 }
@@ -57,6 +59,8 @@ func (ui *ui) checkEquipDrag() *game.Item {
 		slot = ui.placements.invCharWeapon
 	case game.Helmet:
 		slot = ui.placements.invCharHelmet
+	case game.Armor:
+		slot = ui.placements.invCharArmor
 	default:
 		return nil
 	}

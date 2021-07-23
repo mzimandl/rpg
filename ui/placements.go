@@ -13,6 +13,7 @@ type placements struct {
 	invChar       *sdl.Rect
 	invCharHelmet *sdl.Rect
 	invCharWeapon *sdl.Rect
+	invCharArmor  *sdl.Rect
 }
 
 func (ui *ui) recalculatePlacements() {
@@ -38,6 +39,12 @@ func (ui *ui) recalculatePlacements() {
 	}
 	ui.placements.invCharWeapon = &sdl.Rect{
 		ui.placements.invChar.X + ui.placements.invChar.W/10 - ui.placements.itemSize/2,
+		ui.placements.invChar.Y + ui.placements.invChar.H/3,
+		ui.placements.itemSize,
+		ui.placements.itemSize,
+	}
+	ui.placements.invCharArmor = &sdl.Rect{
+		ui.placements.invChar.X + ui.placements.invChar.W/2 + ui.placements.invChar.W/20 - ui.placements.itemSize/2,
 		ui.placements.invChar.Y + ui.placements.invChar.H/3,
 		ui.placements.itemSize,
 		ui.placements.itemSize,

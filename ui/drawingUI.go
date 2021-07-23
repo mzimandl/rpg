@@ -40,6 +40,7 @@ func (ui *ui) drawInventory(level *game.Level) {
 	ui.renderer.Copy(ui.textureAtlas, &playerSrcRect, ui.placements.invChar)
 	ui.drawBox(ui.placements.invCharHelmet, sdl.Color{0, 0, 0, 128})
 	ui.drawBox(ui.placements.invCharWeapon, sdl.Color{0, 0, 0, 128})
+	ui.drawBox(ui.placements.invCharArmor, sdl.Color{0, 0, 0, 128})
 
 	for i, item := range level.Player.Items {
 		if item != ui.draggedItem {
@@ -54,6 +55,9 @@ func (ui *ui) drawInventory(level *game.Level) {
 	}
 	if level.Player.Weapon != nil && level.Player.Weapon != ui.draggedItem {
 		ui.renderer.Copy(ui.textureAtlas, &ui.textureIndex[level.Player.Weapon.Rune][0], ui.placements.invCharWeapon)
+	}
+	if level.Player.Armor != nil && level.Player.Armor != ui.draggedItem {
+		ui.renderer.Copy(ui.textureAtlas, &ui.textureIndex[level.Player.Armor.Rune][0], ui.placements.invCharArmor)
 	}
 
 	if ui.draggedItem != nil {

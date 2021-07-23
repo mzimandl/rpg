@@ -5,6 +5,7 @@ type ItemType int
 const (
 	Weapon ItemType = iota
 	Helmet
+	Armor
 	Other
 )
 
@@ -21,5 +22,10 @@ func NewSword(p Pos) *Item {
 
 func NewHelmet(p Pos) *Item {
 	item := &Item{Entity{p, 'h', "Helmet"}, Helmet, 0.1}
+	return item
+}
+
+func NewArmor(p Pos) *Item {
+	item := &Item{Entity{p, 'a', "Armor"}, Armor, 0.2}
 	return item
 }

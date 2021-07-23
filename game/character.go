@@ -14,6 +14,7 @@ type Character struct {
 	Items  []*Item
 	Helmet *Item
 	Weapon *Item
+	Armor  *Item
 }
 
 func (c *Character) IsAlive() bool {
@@ -28,6 +29,9 @@ func (c *Character) Attack(cToAttack *Character) string {
 	damage := attackPower
 	if cToAttack.Helmet != nil {
 		damage = int(float64(damage) * (1.0 - cToAttack.Helmet.Power))
+	}
+	if cToAttack.Armor != nil {
+		damage = int(float64(damage) * (1.0 - cToAttack.Armor.Power))
 	}
 
 	cToAttack.Hitpoints -= damage
@@ -79,6 +83,11 @@ func (c *Character) Equip(itemToEquip *Item) bool {
 					replace = c.Weapon
 				}
 				c.Weapon = itemToEquip
+			case Armor:
+				if c.Armor != nil {
+					replace = c.Armor
+				}
+				c.Armor = itemToEquip
 			default:
 				return false
 			}
@@ -100,6 +109,8 @@ func (c *Character) TakeOff(itemToTakeOf *Item) bool {
 		c.Helmet = nil
 	case c.Weapon:
 		c.Weapon = nil
+	case c.Armor:
+		c.Armor = nil
 	default:
 		return false
 	}

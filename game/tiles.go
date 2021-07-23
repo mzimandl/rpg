@@ -70,6 +70,9 @@ func (level *Level) generateTile(x, y int, c rune) {
 	case 'h':
 		level.Items[pos] = append(level.Items[pos], NewHelmet(pos))
 		t.Rune = Pending
+	case 'a':
+		level.Items[pos] = append(level.Items[pos], NewArmor(pos))
+		t.Rune = Pending
 
 	case '@':
 		level.Player.Pos = pos
