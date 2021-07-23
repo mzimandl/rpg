@@ -97,39 +97,12 @@ func NewUI(inputChan chan *game.Input, levelChan chan *game.Level) *ui {
 	}
 	// sdl.SetHint(sdl.HINT_RENDER_SCALE_QUALITY, "1")
 
-	ui.fonts = make(map[FontType]*ttf.Font)
-	ui.fonts[FontSmall], err = ttf.OpenFont("ui/assets/Kingthings_Foundation.ttf", int(16*float64(ui.winWidth)/1280))
-	if err != nil {
-		panic(err)
-	}
-	ui.fonts[FontMedium], err = ttf.OpenFont("ui/assets/Kingthings_Foundation.ttf", int(32*float64(ui.winWidth)/1280))
-	if err != nil {
-		panic(err)
-	}
-	ui.fonts[FontLarge], err = ttf.OpenFont("ui/assets/Kingthings_Foundation.ttf", int(64*float64(ui.winWidth)/1280))
-	if err != nil {
-		panic(err)
-	}
-	ui.textCache = make(map[TextCacheKey]*sdl.Texture)
-
-	ui.textureAtlas, err = img.LoadTexture(ui.renderer, "ui/assets/tiles.png")
-	if err != nil {
-		panic(err)
-	}
-	ui.textureIndex = loadTextureIndex()
-
-	ui.whiteDot = getSinglePixelTexture(ui.renderer, sdl.Color{255, 255, 255, 255})
-	ui.whiteDot.SetBlendMode(sdl.BLENDMODE_BLEND)
-
 	ui.mouseState = NewMouseState()
 	ui.keyboardState = NewKeyboardState()
 
-	ui.music, err = mix.LoadMUS("ui/assets/dungeon002.ogg")
-	if err != nil {
-		panic(err)
-	}
-	ui.music.Play(-1)
-	ui.sounds = loadSounds()
+	ui.loadFonts()
+	ui.loadTextures()
+	ui.loadAudio()
 
 	ui.recalculatePlacements()
 	return ui
@@ -168,6 +141,7 @@ func (ui *ui) drawUI(level *game.Level) {
 func (ui *ui) Run() {
 	input := game.Input{game.INone, nil, game.DNone}
 	currentLevel := <-ui.levelChan
+	ui.music.Play(-1)
 
 	for {
 		ui.mouseState.update()

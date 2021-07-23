@@ -69,52 +69,7 @@ func NewLevelFromFile(filename string, player *Player) *Level {
 	for y := range level.Map {
 		line := levelLines[y]
 		for x, c := range line {
-			var t Tile
-			t.OverlayRune = Blank
-			pos := Pos{x, y}
-
-			switch c {
-			case ' ', '\t', '\n', '\r':
-				t.Rune = Blank
-			case '.':
-				t.Rune = DirtFloor
-			case '#':
-				t.Rune = StoneWall
-			case '|':
-				t.OverlayRune = ClosedDoor
-				t.Rune = Pending
-			case '/':
-				t.OverlayRune = OpenedDoor
-				t.Rune = Pending
-			case 'u':
-				t.OverlayRune = UpStair
-				t.Rune = Pending
-			case 'd':
-				t.OverlayRune = DownStair
-				t.Rune = Pending
-			case 's':
-				level.Items[pos] = append(level.Items[pos], NewSword(pos))
-				t.Rune = Pending
-			case 'h':
-				level.Items[pos] = append(level.Items[pos], NewHelmet(pos))
-				t.Rune = Pending
-			case '@':
-				level.Player.Pos = pos
-				t.Rune = Pending
-			case 'R':
-				m := NewRat(pos)
-				level.Monsters = append(level.Monsters, m)
-				level.AliveMonstersPos[pos] = m
-				t.Rune = Pending
-			case 'S':
-				m := NewSpider(pos)
-				level.Monsters = append(level.Monsters, m)
-				level.AliveMonstersPos[pos] = m
-				t.Rune = Pending
-			default:
-				panic("Invalid character in the map: " + string(c))
-			}
-			level.Map[y][x] = t
+			level.generateTile(x, y, c)
 		}
 	}
 
@@ -135,15 +90,7 @@ func (level *Level) inRange(pos Pos) bool {
 func (level *Level) canWalk(pos Pos) bool {
 	if level.inRange(pos) {
 		t := level.Map[pos.Y][pos.X]
-		switch t.Rune {
-		case StoneWall:
-			return false
-		}
-		switch t.OverlayRune {
-		case ClosedDoor:
-			return false
-		}
-		return true
+		return t.canWalk
 	}
 	return false
 }
@@ -151,15 +98,7 @@ func (level *Level) canWalk(pos Pos) bool {
 func (level *Level) canSeeThrough(pos Pos) bool {
 	if level.inRange(pos) {
 		t := level.Map[pos.Y][pos.X]
-		switch t.Rune {
-		case StoneWall:
-			return false
-		}
-		switch t.OverlayRune {
-		case ClosedDoor:
-			return false
-		}
-		return true
+		return t.canSee
 	}
 	return false
 }
@@ -226,7 +165,10 @@ func (level *Level) checkClosedDoor(pos Pos) bool {
 	t := level.Map[pos.Y][pos.X]
 	switch t.OverlayRune {
 	case ClosedDoor:
-		level.Map[pos.Y][pos.X].OverlayRune = OpenedDoor
+		t.OverlayRune = OpenedDoor
+		t.canSee = true
+		t.canWalk = true
+		level.Map[pos.Y][pos.X] = t
 		level.LastEvents = append(level.LastEvents, DoorOpen)
 		return true
 	}
@@ -237,7 +179,10 @@ func (level *Level) checkOpenedDoor(pos Pos) bool {
 	t := level.Map[pos.Y][pos.X]
 	switch t.OverlayRune {
 	case OpenedDoor:
-		level.Map[pos.Y][pos.X].OverlayRune = ClosedDoor
+		t.OverlayRune = ClosedDoor
+		t.canSee = false
+		t.canWalk = false
+		level.Map[pos.Y][pos.X] = t
 		level.LastEvents = append(level.LastEvents, DoorClose)
 		return true
 	}
@@ -303,6 +248,8 @@ func (level *Level) BfsFloor(start Pos) rune {
 		switch currentTile.Rune {
 		case DirtFloor:
 			return DirtFloor
+		case StoneFloor:
+			return StoneFloor
 		default:
 		}
 

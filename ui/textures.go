@@ -6,8 +6,22 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/sdl"
 )
+
+func (ui *ui) loadTextures() {
+	var err error
+	ui.textCache = make(map[TextCacheKey]*sdl.Texture)
+	ui.textureAtlas, err = img.LoadTexture(ui.renderer, "ui/assets/tiles.png")
+	if err != nil {
+		panic(err)
+	}
+	ui.textureIndex = loadTextureIndex()
+
+	ui.whiteDot = getSinglePixelTexture(ui.renderer, sdl.Color{255, 255, 255, 255})
+	ui.whiteDot.SetBlendMode(sdl.BLENDMODE_BLEND)
+}
 
 func loadTextureIndex() map[rune][]sdl.Rect {
 	textureIndex := make(map[rune][]sdl.Rect)
@@ -33,19 +47,16 @@ func loadTextureIndex() map[rune][]sdl.Rect {
 			panic(err)
 		}
 
-		var rects []sdl.Rect
 		variationCount, err := strconv.ParseInt(strings.TrimSpace(splitXYC[2]), 10, 64)
 		for i := 0; i < int(variationCount); i++ {
-			rects = append(rects, sdl.Rect{int32(x) * 32, int32(y) * 32, 32, 32})
+			textureIndex[tileRune] = append(textureIndex[tileRune], sdl.Rect{int32(x) * 32, int32(y) * 32, 32, 32})
 			x++
 			if x > 62 {
 				x = 0
 				y++
 			}
 		}
-		textureIndex[tileRune] = rects
 	}
-
 	return textureIndex
 }
 

@@ -13,9 +13,14 @@ type sounds struct {
 	footstep  []*mix.Chunk
 }
 
-func loadSounds() *sounds {
-	newSounds := &sounds{}
+func (ui *ui) loadAudio() {
+	var err error
+	ui.music, err = mix.LoadMUS("ui/assets/dungeon002.ogg")
+	if err != nil {
+		panic(err)
+	}
 
+	ui.sounds = &sounds{}
 	footstepBase := "ui/assets/sounds/footstep0"
 	for i := 0; i <= 9; i++ {
 		filename := footstepBase + strconv.Itoa(i) + ".ogg"
@@ -23,7 +28,7 @@ func loadSounds() *sounds {
 		if err != nil {
 			panic(err)
 		}
-		newSounds.footstep = append(newSounds.footstep, chunk)
+		ui.sounds.footstep = append(ui.sounds.footstep, chunk)
 	}
 	doorOpenBase := "ui/assets/sounds/doorOpen_"
 	for i := 1; i <= 2; i++ {
@@ -32,7 +37,7 @@ func loadSounds() *sounds {
 		if err != nil {
 			panic(err)
 		}
-		newSounds.doorOpen = append(newSounds.doorOpen, chunk)
+		ui.sounds.doorOpen = append(ui.sounds.doorOpen, chunk)
 	}
 	doorCloseBase := "ui/assets/sounds/doorClose_"
 	for i := 1; i <= 4; i++ {
@@ -41,10 +46,9 @@ func loadSounds() *sounds {
 		if err != nil {
 			panic(err)
 		}
-		newSounds.doorClose = append(newSounds.doorClose, chunk)
+		ui.sounds.doorClose = append(ui.sounds.doorClose, chunk)
 	}
 
-	return newSounds
 }
 
 func (s *sounds) Free() {
