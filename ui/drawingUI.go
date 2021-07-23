@@ -33,3 +33,32 @@ func (ui *ui) drawLog(level *game.Level) {
 		textPosY += h
 	}
 }
+
+func (ui *ui) drawInventory(level *game.Level) {
+	ui.drawBox(ui.placements.inv, sdl.Color{149, 84, 19, 200})
+	playerSrcRect := ui.textureIndex[level.Player.Rune][0]
+	ui.renderer.Copy(ui.textureAtlas, &playerSrcRect, ui.placements.invChar)
+	ui.drawBox(ui.placements.invCharHelmet, sdl.Color{0, 0, 0, 128})
+	ui.drawBox(ui.placements.invCharWeapon, sdl.Color{0, 0, 0, 128})
+
+	for i, item := range level.Player.Items {
+		if item != ui.draggedItem {
+			itemSrcRect := &ui.textureIndex[item.Rune][0]
+			itemDstRect := ui.getInventoryItemRect(i)
+			ui.renderer.Copy(ui.textureAtlas, itemSrcRect, itemDstRect)
+		}
+	}
+
+	if level.Player.Helmet != nil && level.Player.Helmet != ui.draggedItem {
+		ui.renderer.Copy(ui.textureAtlas, &ui.textureIndex[level.Player.Helmet.Rune][0], ui.placements.invCharHelmet)
+	}
+	if level.Player.Weapon != nil && level.Player.Weapon != ui.draggedItem {
+		ui.renderer.Copy(ui.textureAtlas, &ui.textureIndex[level.Player.Weapon.Rune][0], ui.placements.invCharWeapon)
+	}
+
+	if ui.draggedItem != nil {
+		itemSrcRect := &ui.textureIndex[ui.draggedItem.Rune][0]
+		itemDstRect := &sdl.Rect{ui.mouseState.x, ui.mouseState.y, ui.placements.itemSize, ui.placements.itemSize}
+		ui.renderer.Copy(ui.textureAtlas, itemSrcRect, itemDstRect)
+	}
+}

@@ -38,34 +38,32 @@ func (c *Character) Attack(cToAttack *Character) string {
 	}
 }
 
-func (c *Character) TakeItem(level *Level, itemToMove *Item) {
+func (c *Character) TakeItem(level *Level, itemToMove *Item) bool {
 	pos := c.Pos
 	items := level.Items[pos]
 	for i, item := range items {
 		if item == itemToMove {
 			level.Items[pos] = append(items[:i], items[i+1:]...)
 			c.Items = append(c.Items, itemToMove)
-			return
+			return true
 		}
 	}
-	panic("Trying to take wrong item")
+	return false
 }
 
-func (c *Character) DropItem(level *Level, itemToMove *Item) {
-	pos := c.Pos
-	items := c.Items
-	for i, item := range items {
+func (c *Character) DropItem(level *Level, itemToMove *Item) bool {
+	for i, item := range c.Items {
 		if item == itemToMove {
-			item.Pos = pos
+			item.Pos = c.Pos
 			c.Items = append(c.Items[:i], c.Items[i+1:]...)
-			level.Items[pos] = append(level.Items[pos], itemToMove)
-			return
+			level.Items[c.Pos] = append(level.Items[c.Pos], itemToMove)
+			return true
 		}
 	}
-	panic("Trying to drop wrong item")
+	return false
 }
 
-func (c *Character) Equip(itemToEquip *Item) {
+func (c *Character) Equip(itemToEquip *Item) bool {
 	for i, item := range c.Items {
 		if item == itemToEquip {
 			var replace *Item
@@ -82,7 +80,7 @@ func (c *Character) Equip(itemToEquip *Item) {
 				}
 				c.Weapon = itemToEquip
 			default:
-				return
+				return false
 			}
 
 			if replace != nil {
@@ -90,21 +88,22 @@ func (c *Character) Equip(itemToEquip *Item) {
 			} else {
 				c.Items = append(c.Items[:i], c.Items[i+1:]...)
 			}
-			return
+			return true
 		}
 	}
-	panic("Missing item to equip")
+	return false
 }
 
-func (c *Character) TakeOff(itemToTakeOf *Item) {
+func (c *Character) TakeOff(itemToTakeOf *Item) bool {
 	switch itemToTakeOf {
 	case c.Helmet:
 		c.Helmet = nil
 	case c.Weapon:
 		c.Weapon = nil
 	default:
-		panic("Wrong item to take off")
+		return false
 	}
 
 	c.Items = append(c.Items, itemToTakeOf)
+	return true
 }

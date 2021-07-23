@@ -172,31 +172,45 @@ func (ui *ui) Run() {
 				}
 			} else if ui.mouseState.leftClicked() {
 				item := ui.checkInventoryItems(currentLevel)
+				if item == nil {
+					item = ui.checkEquippedItems(currentLevel)
+				}
 				if item != nil {
 					ui.draggedItem = item
 				}
 			} else if ui.mouseState.leftUnclicked() && ui.draggedItem != nil {
-				item := ui.checkDroppedItem()
+				item := ui.checkDropDrag()
 				if item != nil {
 					input.Typ = game.IDropItem
 					input.Item = item
 				}
-				item = ui.checkEquippedItem()
-				if item != nil {
-					input.Typ = game.IEquipItem
-					input.Item = item
+				if item == nil {
+					item = ui.checkEquipDrag()
+					if item != nil {
+						input.Typ = game.IEquipItem
+						input.Item = item
+					}
+				}
+				if item == nil {
+					item = ui.checkInventoryDrag()
+					if item != nil {
+						input.Typ = game.ITakeOffItem
+						input.Item = item
+					}
 				}
 				ui.draggedItem = nil
 			} else if ui.mouseState.rightClicked() {
-				item := ui.checkTakeOffItem(currentLevel)
+				item := ui.checkEquippedItems(currentLevel)
 				if item != nil {
 					input.Typ = game.ITakeOffItem
 					input.Item = item
 				}
-				item = ui.checkInventoryItems(currentLevel)
-				if item != nil {
-					input.Typ = game.IDropItem
-					input.Item = item
+				if item == nil {
+					item = ui.checkInventoryItems(currentLevel)
+					if item != nil {
+						input.Typ = game.IDropItem
+						input.Item = item
+					}
 				}
 			}
 		}

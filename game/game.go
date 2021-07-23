@@ -201,22 +201,27 @@ func (game *Game) handleInput(input *Input) {
 			game.resolveAction(newPos)
 		}
 	case ITakeItem:
-		game.Player.TakeItem(game.CurrentLevel, input.Item)
-		game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, PickUp)
+		if game.Player.TakeItem(game.CurrentLevel, input.Item) {
+			game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, PickUp)
+		}
 	case IDropItem:
-		game.Player.DropItem(game.CurrentLevel, input.Item)
-		game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, DropDown)
+		game.Player.TakeOff(input.Item)
+		if game.Player.DropItem(game.CurrentLevel, input.Item) {
+			game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, DropDown)
+		}
 	case ITakeAll:
 		for _, item := range game.CurrentLevel.Items[game.Player.Pos] {
 			game.Player.TakeItem(game.CurrentLevel, item)
 		}
 		game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, PickUp)
 	case IEquipItem:
-		game.Player.Equip(input.Item)
-		game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, Equip)
+		if game.Player.Equip(input.Item) {
+			game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, Equip)
+		}
 	case ITakeOffItem:
-		game.Player.TakeOff(input.Item)
-		game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, TakeOff)
+		if game.Player.TakeOff(input.Item) {
+			game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, TakeOff)
+		}
 	}
 }
 
@@ -231,9 +236,12 @@ func (game *Game) Run() {
 		}
 
 		game.handleInput(input)
-		for _, monster := range game.CurrentLevel.Monsters {
-			if monster.IsAlive() {
-				monster.Update(game.CurrentLevel)
+		switch input.Typ {
+		case IAction, IMove:
+			for _, monster := range game.CurrentLevel.Monsters {
+				if monster.IsAlive() {
+					monster.Update(game.CurrentLevel)
+				}
 			}
 		}
 
