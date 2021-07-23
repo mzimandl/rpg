@@ -1,12 +1,17 @@
 package ui2d
 
-import "github.com/veandco/go-sdl2/sdl"
+import (
+	"time"
+
+	"github.com/veandco/go-sdl2/sdl"
+)
 
 type mouseState struct {
 	leftButton, rightButton         bool
 	prevLeftButton, prevRightButton bool
 	x, y                            int32
 	prevX, prevY                    int32
+	lastClick                       time.Time
 }
 
 func NewMouseState() *mouseState {
@@ -30,6 +35,14 @@ func (ms *mouseState) update() {
 	ms.leftButton = (mouseButtonState&sdl.ButtonLMask() != 0)
 	ms.rightButton = (mouseButtonState&sdl.ButtonRMask() != 0)
 	ms.x, ms.y = mouseX, mouseY
+
+	if ms.leftUnclicked() {
+		ms.lastClick = time.Now()
+	}
+}
+
+func (ms *mouseState) leftDoubleClicked() bool {
+	return ms.leftButton && !ms.prevLeftButton && time.Now().Sub(ms.lastClick).Milliseconds() < 250
 }
 
 func (ms *mouseState) leftClicked() bool {

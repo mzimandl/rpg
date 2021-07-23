@@ -164,7 +164,13 @@ func (ui *ui) Run() {
 
 		// inventory dragging
 		if ui.state == UIInventory {
-			if ui.mouseState.leftClicked() {
+			if ui.mouseState.leftDoubleClicked() {
+				item := ui.checkInventoryItems(currentLevel)
+				if item != nil {
+					input.Typ = game.IEquipItem
+					input.Item = item
+				}
+			} else if ui.mouseState.leftClicked() {
 				item := ui.checkInventoryItems(currentLevel)
 				if item != nil {
 					ui.draggedItem = item
