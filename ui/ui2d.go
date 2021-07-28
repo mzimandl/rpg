@@ -15,6 +15,7 @@ type uiState int
 const (
 	UIMain uiState = iota
 	UIInventory
+	UIExchange
 )
 
 type ui struct {
@@ -225,7 +226,7 @@ func (ui *ui) Run() {
 		}
 
 		if ui.keyboardState.pressed(sdl.SCANCODE_ESCAPE) {
-			if ui.state == UIInventory {
+			if ui.state != UIMain {
 				ui.state = UIMain
 			} else {
 				input.Typ = game.IQuitGame
@@ -266,6 +267,12 @@ func (ui *ui) Run() {
 			} else {
 				ui.state = UIMain
 			}
+		} else if ui.keyboardState.pressed(sdl.SCANCODE_TAB) {
+			if ui.state != UIExchange {
+				ui.state = UIExchange
+			} else {
+				ui.state = UIMain
+			}
 		}
 
 		if input.Typ != game.INone {
@@ -294,8 +301,13 @@ func (ui *ui) Run() {
 		ui.renderer.Clear()
 		ui.drawLevel(currentLevel)
 		ui.drawUI(currentLevel)
-		if ui.state == UIInventory {
+		switch ui.state {
+		case UIExchange:
+			ui.drawExchange()
+			fallthrough
+		case UIInventory:
 			ui.drawInventory(currentLevel)
+			ui.drawDraggedItem()
 		}
 		ui.renderer.Present()
 

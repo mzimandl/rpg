@@ -78,6 +78,11 @@ type Entity struct {
 	Name string
 }
 
+type Carrier struct {
+	Entity
+	Items []*Item
+}
+
 func (game *Game) loadWorldFile() {
 	file, err := os.Open("game/maps/world.txt")
 	if err != nil {

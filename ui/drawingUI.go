@@ -35,7 +35,7 @@ func (ui *ui) drawLog(level *game.Level) {
 }
 
 func (ui *ui) drawInventory(level *game.Level) {
-	ui.drawBox(ui.placements.inv, sdl.Color{149, 84, 19, 200})
+	ui.drawBox(ui.placements.inv, sdl.Color{149, 84, 19, 128})
 	playerSrcRect := ui.textureIndex[level.Player.Rune][0]
 	ui.renderer.Copy(ui.textureAtlas, &playerSrcRect, ui.placements.invChar)
 	ui.drawBox(ui.placements.invCharHelmet, sdl.Color{0, 0, 0, 128})
@@ -59,7 +59,13 @@ func (ui *ui) drawInventory(level *game.Level) {
 	if level.Player.Armor != nil && level.Player.Armor != ui.draggedItem {
 		ui.renderer.Copy(ui.textureAtlas, &ui.textureIndex[level.Player.Armor.Rune][0], ui.placements.invCharArmor)
 	}
+}
 
+func (ui *ui) drawExchange() {
+	ui.drawBox(ui.placements.exch, sdl.Color{149, 84, 19, 128})
+}
+
+func (ui *ui) drawDraggedItem() {
 	if ui.draggedItem != nil {
 		itemSrcRect := &ui.textureIndex[ui.draggedItem.Rune][0]
 		itemDstRect := &sdl.Rect{ui.mouseState.x, ui.mouseState.y, ui.placements.itemSize, ui.placements.itemSize}

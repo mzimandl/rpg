@@ -14,6 +14,8 @@ type placements struct {
 	invCharHelmet *sdl.Rect
 	invCharWeapon *sdl.Rect
 	invCharArmor  *sdl.Rect
+
+	exch *sdl.Rect
 }
 
 func (ui *ui) recalculatePlacements() {
@@ -49,6 +51,8 @@ func (ui *ui) recalculatePlacements() {
 		ui.placements.itemSize,
 		ui.placements.itemSize,
 	}
+
+	ui.placements.exch = ui.getExchangeRectangle()
 }
 
 func (ui *ui) getGroundItemRect(index int) *sdl.Rect {
@@ -61,9 +65,9 @@ func (ui *ui) getGroundItemRect(index int) *sdl.Rect {
 }
 
 func (ui *ui) getInventoryRectangle() *sdl.Rect {
-	invWidth := int32(float64(ui.winWidth) * 0.4)
-	invHeight := int32(float64(ui.winHeight) * 0.75)
-	offsetX := (ui.winWidth - invWidth) / 2
+	invWidth := int32(float64(ui.winWidth) * 0.5 * 0.9)
+	invHeight := int32(float64(ui.winHeight) * 0.9)
+	offsetX := int32(float64(ui.winWidth)*0.5) + (int32(float64(ui.winWidth)*0.5)-invWidth)/2
 	offsetY := (ui.winHeight - invHeight) / 2
 	return &sdl.Rect{offsetX, offsetY, invWidth, invHeight}
 }
@@ -75,4 +79,12 @@ func (ui *ui) getInventoryItemRect(index int) *sdl.Rect {
 		ui.placements.itemSize,
 		ui.placements.itemSize,
 	}
+}
+
+func (ui *ui) getExchangeRectangle() *sdl.Rect {
+	invWidth := int32(float64(ui.winWidth) * 0.5 * 0.9)
+	invHeight := int32(float64(ui.winHeight) * 0.9)
+	offsetX := (int32(float64(ui.winWidth)*0.5) - invWidth) / 2
+	offsetY := (ui.winHeight - invHeight) / 2
+	return &sdl.Rect{offsetX, offsetY, invWidth, invHeight}
 }

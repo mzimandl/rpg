@@ -3,7 +3,7 @@ package game
 import "strconv"
 
 type Character struct {
-	Entity
+	Carrier
 
 	Hitpoints    int
 	Strength     int
@@ -11,7 +11,6 @@ type Character struct {
 	ActionPoints float64
 	SightRange   int
 
-	Items  []*Item
 	Helmet *Item
 	Weapon *Item
 	Armor  *Item
