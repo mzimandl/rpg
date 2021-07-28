@@ -6,11 +6,30 @@ import (
 	"github.com/veandco/go-sdl2/sdl"
 )
 
+type UIArea int
+
+const (
+	UIAInv UIArea = iota
+	UIASlot
+	UIAExch
+)
+
 func (ui *ui) checkGroundItems(level *game.Level) *game.Item {
 	for i, item := range level.Items[level.Player.Pos] {
 		itemDstRect := ui.getGroundItemRect(i)
 		if ui.mouseState.onRect(itemDstRect) {
 			return item
+		}
+	}
+	return nil
+}
+
+func (ui *ui) checkGroundStorage(level *game.Level) *game.Storage {
+	storage := level.Storages[level.Player.Pos]
+	if storage != nil {
+		itemDstRect := ui.getGroundItemRect(0)
+		if ui.mouseState.onRect(itemDstRect) {
+			return storage
 		}
 	}
 	return nil
@@ -37,8 +56,25 @@ func (ui *ui) checkEquippedItems(level *game.Level) *game.Item {
 	return nil
 }
 
+func (ui *ui) checkExchangeItems(level *game.Level) *game.Item {
+	for i, item := range ui.usedStorage.Items {
+		itemDstRect := ui.getExchangeItemRect(i)
+		if ui.mouseState.onRect(itemDstRect) {
+			return item
+		}
+	}
+	return nil
+}
+
 func (ui *ui) checkInventoryDrag() *game.Item {
 	if ui.mouseState.onRect(ui.placements.inv) {
+		return ui.draggedItem
+	}
+	return nil
+}
+
+func (ui *ui) checkExchangeDrag() *game.Item {
+	if ui.mouseState.onRect(ui.placements.exch) {
 		return ui.draggedItem
 	}
 	return nil

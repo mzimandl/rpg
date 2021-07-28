@@ -3,7 +3,7 @@ package game
 import "strconv"
 
 type Character struct {
-	Carrier
+	Storage
 
 	Hitpoints    int
 	Strength     int
@@ -42,13 +42,23 @@ func (c *Character) Attack(cToAttack *Character) string {
 }
 
 func (c *Character) TakeItem(level *Level, itemToMove *Item) bool {
-	pos := c.Pos
-	items := level.Items[pos]
-	for i, item := range items {
-		if item == itemToMove {
-			level.Items[pos] = append(items[:i], items[i+1:]...)
-			c.Items = append(c.Items, itemToMove)
-			return true
+	storage := level.Storages[c.Pos]
+	if storage != nil {
+		for i, item := range storage.Items {
+			if item == itemToMove {
+				storage.Items = append(storage.Items[:i], storage.Items[i+1:]...)
+				c.Items = append(c.Items, itemToMove)
+				return true
+			}
+		}
+	} else {
+		items := level.Items[c.Pos]
+		for i, item := range items {
+			if item == itemToMove {
+				level.Items[c.Pos] = append(items[:i], items[i+1:]...)
+				c.Items = append(c.Items, itemToMove)
+				return true
+			}
 		}
 	}
 	return false
@@ -59,7 +69,12 @@ func (c *Character) DropItem(level *Level, itemToMove *Item) bool {
 		if item == itemToMove {
 			item.Pos = c.Pos
 			c.Items = append(c.Items[:i], c.Items[i+1:]...)
-			level.Items[c.Pos] = append(level.Items[c.Pos], itemToMove)
+			storage := level.Storages[c.Pos]
+			if storage != nil {
+				storage.Items = append(storage.Items, itemToMove)
+			} else {
+				level.Items[c.Pos] = append(level.Items[c.Pos], itemToMove)
+			}
 			return true
 		}
 	}
@@ -102,8 +117,8 @@ func (c *Character) Equip(itemToEquip *Item) bool {
 	return false
 }
 
-func (c *Character) TakeOff(itemToTakeOf *Item) bool {
-	switch itemToTakeOf {
+func (c *Character) Strip(itemToStrip *Item) bool {
+	switch itemToStrip {
 	case c.Helmet:
 		c.Helmet = nil
 	case c.Weapon:
@@ -114,6 +129,6 @@ func (c *Character) TakeOff(itemToTakeOf *Item) bool {
 		return false
 	}
 
-	c.Items = append(c.Items, itemToTakeOf)
+	c.Items = append(c.Items, itemToStrip)
 	return true
 }

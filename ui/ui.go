@@ -15,7 +15,6 @@ type uiState int
 const (
 	UIMain uiState = iota
 	UIInventory
-	UIExchange
 )
 
 type ui struct {
@@ -35,7 +34,9 @@ type ui struct {
 	textureIndex   map[rune][]sdl.Rect
 	fonts          map[FontType]*ttf.Font
 	textCache      map[TextCacheKey]*sdl.Texture
+	dragFrom       UIArea
 	draggedItem    *game.Item
+	usedStorage    *game.Storage
 
 	music  *mix.Music
 	sounds *sounds
@@ -128,6 +129,7 @@ func (ui *ui) drawLevel(level *game.Level) {
 	ui.tileRandomizer.Seed(1)
 
 	ui.drawTiles(level, offsetX, offsetY)
+	ui.drawStorages(level, offsetX, offsetY)
 	ui.drawDeadMonsters(level, offsetX, offsetY)
 	ui.drawItemsTile(level, offsetX, offsetY)
 	ui.drawMonsters(level, offsetX, offsetY)
@@ -170,32 +172,50 @@ func (ui *ui) Run() {
 				if item != nil {
 					input.Typ = game.IEquipItem
 					input.Item = item
+				} else if ui.usedStorage != nil {
+					item = ui.checkExchangeItems(currentLevel)
+					if item != nil {
+						input.Typ = game.ITakeItem
+						input.Item = item
+					}
 				}
 			} else if ui.mouseState.leftClicked() {
 				item := ui.checkInventoryItems(currentLevel)
+				ui.dragFrom = UIAInv
 				if item == nil {
 					item = ui.checkEquippedItems(currentLevel)
-				}
-				if item != nil {
-					ui.draggedItem = item
-				}
-			} else if ui.mouseState.leftUnclicked() && ui.draggedItem != nil {
-				item := ui.checkDropDrag()
-				if item != nil {
-					input.Typ = game.IDropItem
-					input.Item = item
-				}
-				if item == nil {
-					item = ui.checkEquipDrag()
-					if item != nil {
-						input.Typ = game.IEquipItem
-						input.Item = item
+					ui.dragFrom = UIASlot
+					if item == nil && ui.usedStorage != nil {
+						item = ui.checkExchangeItems(currentLevel)
+						ui.dragFrom = UIAExch
 					}
+				}
+				ui.draggedItem = item
+			} else if ui.mouseState.leftUnclicked() && ui.draggedItem != nil {
+				item := ui.checkEquipDrag()
+				if item != nil {
+					input.Typ = game.IEquipItem
+					input.Item = item
 				}
 				if item == nil {
 					item = ui.checkInventoryDrag()
 					if item != nil {
-						input.Typ = game.ITakeOffItem
+						if ui.dragFrom == UIAExch {
+							input.Typ = game.ITakeItem
+						} else {
+							input.Typ = game.IStripItem
+						}
+						input.Item = item
+					}
+				}
+				if item == nil {
+					if ui.usedStorage != nil {
+						item = ui.checkExchangeDrag()
+					} else {
+						item = ui.checkDropDrag()
+					}
+					if item != nil {
+						input.Typ = game.IDropItem
 						input.Item = item
 					}
 				}
@@ -203,7 +223,7 @@ func (ui *ui) Run() {
 			} else if ui.mouseState.rightClicked() {
 				item := ui.checkEquippedItems(currentLevel)
 				if item != nil {
-					input.Typ = game.ITakeOffItem
+					input.Typ = game.IStripItem
 					input.Item = item
 				}
 				if item == nil {
@@ -222,12 +242,19 @@ func (ui *ui) Run() {
 			if item != nil {
 				input.Typ = game.ITakeItem
 				input.Item = item
+			} else {
+				storage := ui.checkGroundStorage(currentLevel)
+				if storage != nil {
+					ui.usedStorage = storage
+					ui.state = UIInventory
+				}
 			}
 		}
 
 		if ui.keyboardState.pressed(sdl.SCANCODE_ESCAPE) {
 			if ui.state != UIMain {
 				ui.state = UIMain
+				ui.usedStorage = nil
 			} else {
 				input.Typ = game.IQuitGame
 			}
@@ -261,16 +288,20 @@ func (ui *ui) Run() {
 			}
 		} else if ui.keyboardState.pressed(sdl.SCANCODE_T) {
 			input.Typ = game.ITakeAll
-		} else if ui.keyboardState.pressed(sdl.SCANCODE_I) {
-			if ui.state != UIInventory {
-				ui.state = UIInventory
-			} else {
-				ui.state = UIMain
-			}
 		} else if ui.keyboardState.pressed(sdl.SCANCODE_TAB) {
-			if ui.state != UIExchange {
-				ui.state = UIExchange
+			if ui.usedStorage == nil {
+				ui.usedStorage = currentLevel.Storages[currentLevel.Player.Pos]
+				if ui.usedStorage == nil {
+					if ui.state != UIMain {
+						ui.state = UIMain
+					} else {
+						ui.state = UIInventory
+					}
+				} else {
+					ui.state = UIInventory
+				}
 			} else {
+				ui.usedStorage = nil
 				ui.state = UIMain
 			}
 		}
@@ -285,8 +316,10 @@ func (ui *ui) Run() {
 				for _, lastEvent := range currentLevel.LastEvents {
 					switch lastEvent {
 					case game.Portal:
+						ui.usedStorage = nil
 						ui.centerX, ui.centerY = -1, -1
 					case game.Move:
+						ui.usedStorage = nil
 						playRandomSound(ui.sounds.footstep, 10)
 					case game.DoorOpen:
 						playRandomSound(ui.sounds.doorOpen, 10)
@@ -302,10 +335,10 @@ func (ui *ui) Run() {
 		ui.drawLevel(currentLevel)
 		ui.drawUI(currentLevel)
 		switch ui.state {
-		case UIExchange:
-			ui.drawExchange()
-			fallthrough
 		case UIInventory:
+			if ui.usedStorage != nil {
+				ui.drawExchange()
+			}
 			ui.drawInventory(currentLevel)
 			ui.drawDraggedItem()
 		}

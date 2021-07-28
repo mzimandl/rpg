@@ -116,3 +116,16 @@ func (ui *ui) drawPlayer(level *game.Level, offsetX, offsetY int32) {
 	playerDstRect := sdl.Rect{offsetX + int32(level.Player.X)*tileSize, offsetY + int32(level.Player.Y)*tileSize, tileSize, tileSize}
 	ui.renderer.Copy(ui.textureAtlas, &playerSrcRect, &playerDstRect)
 }
+
+func (ui *ui) drawStorages(level *game.Level, offsetX, offsetY int32) {
+	for pos, storage := range level.Storages {
+		var srcRect sdl.Rect
+		if storage == ui.usedStorage {
+			srcRect = ui.textureIndex[storage.Rune][len(ui.textureIndex[storage.Rune])-1]
+		} else {
+			srcRect = ui.textureIndex[storage.Rune][0]
+		}
+		dstRect := sdl.Rect{offsetX + int32(pos.X)*tileSize, offsetY + int32(pos.Y)*tileSize, tileSize, tileSize}
+		ui.renderer.Copy(ui.textureAtlas, &srcRect, &dstRect)
+	}
+}

@@ -48,7 +48,7 @@ const (
 	ITakeItem
 	IDropItem
 	IEquipItem
-	ITakeOffItem
+	IStripItem
 	IQuitGame
 )
 
@@ -76,11 +76,6 @@ type Entity struct {
 	Pos
 	Rune rune
 	Name string
-}
-
-type Carrier struct {
-	Entity
-	Items []*Item
 }
 
 func (game *Game) loadWorldFile() {
@@ -210,7 +205,7 @@ func (game *Game) handleInput(input *Input) {
 			game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, PickUp)
 		}
 	case IDropItem:
-		game.Player.TakeOff(input.Item)
+		game.Player.Strip(input.Item)
 		if game.Player.DropItem(game.CurrentLevel, input.Item) {
 			game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, DropDown)
 		}
@@ -223,8 +218,8 @@ func (game *Game) handleInput(input *Input) {
 		if game.Player.Equip(input.Item) {
 			game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, Equip)
 		}
-	case ITakeOffItem:
-		if game.Player.TakeOff(input.Item) {
+	case IStripItem:
+		if game.Player.Strip(input.Item) {
 			game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, TakeOff)
 		}
 	}

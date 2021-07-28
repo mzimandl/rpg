@@ -7,15 +7,18 @@ import (
 )
 
 type Level struct {
-	Map              [][]Tile
-	Player           *Player
-	Monsters         []*Monster
+	Map      [][]Tile
+	Player   *Player
+	Monsters []*Monster
+
 	AliveMonstersPos map[Pos]*Monster
 	Items            map[Pos][]*Item
 	Portals          map[Pos]*LevelPos
-	Log              []string
-	Debug            map[Pos]bool
-	LastEvents       []GameEvent
+	Storages         map[Pos]*Storage
+
+	Log        []string
+	Debug      map[Pos]bool
+	LastEvents []GameEvent
 }
 
 type GameEvent int
@@ -63,6 +66,7 @@ func NewLevelFromFile(filename string, player *Player) *Level {
 	level.Player = player
 	level.AliveMonstersPos = make(map[Pos]*Monster)
 	level.Portals = make(map[Pos]*LevelPos)
+	level.Storages = make(map[Pos]*Storage)
 	level.Items = make(map[Pos][]*Item)
 	level.Debug = make(map[Pos]bool)
 
@@ -80,6 +84,8 @@ func NewLevelFromFile(filename string, player *Player) *Level {
 			}
 		}
 	}
+
+	level.Storages[Pos{1, 3}] = NewChest(Pos{1, 3})
 	return level
 }
 

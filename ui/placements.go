@@ -88,3 +88,12 @@ func (ui *ui) getExchangeRectangle() *sdl.Rect {
 	offsetY := (ui.winHeight - invHeight) / 2
 	return &sdl.Rect{offsetX, offsetY, invWidth, invHeight}
 }
+
+func (ui *ui) getExchangeItemRect(index int) *sdl.Rect {
+	return &sdl.Rect{
+		int32(index)*ui.placements.itemSize + ui.placements.exch.X,
+		ui.placements.exch.Y + ui.placements.exch.H - ui.placements.itemSize,
+		ui.placements.itemSize,
+		ui.placements.itemSize,
+	}
+}

@@ -7,10 +7,22 @@ import (
 )
 
 func (ui *ui) drawGroundItems(level *game.Level, x, y int32) {
-	for i, item := range level.Items[level.Player.Pos] {
-		itemSrcRect := &ui.textureIndex[item.Rune][0]
-		itemDstRect := ui.getGroundItemRect(i)
-		ui.renderer.Copy(ui.textureAtlas, itemSrcRect, itemDstRect)
+	storage := level.Storages[level.Player.Pos]
+	if storage != nil {
+		var srcRect *sdl.Rect
+		if ui.usedStorage == storage {
+			srcRect = &ui.textureIndex[storage.Rune][len(ui.textureIndex[storage.Rune])-1]
+		} else {
+			srcRect = &ui.textureIndex[storage.Rune][0]
+		}
+		dstRect := ui.getGroundItemRect(0)
+		ui.renderer.Copy(ui.textureAtlas, srcRect, dstRect)
+	} else {
+		for i, item := range level.Items[level.Player.Pos] {
+			itemSrcRect := &ui.textureIndex[item.Rune][0]
+			itemDstRect := ui.getGroundItemRect(i)
+			ui.renderer.Copy(ui.textureAtlas, itemSrcRect, itemDstRect)
+		}
 	}
 }
 
@@ -63,6 +75,14 @@ func (ui *ui) drawInventory(level *game.Level) {
 
 func (ui *ui) drawExchange() {
 	ui.drawBox(ui.placements.exch, sdl.Color{149, 84, 19, 128})
+
+	for i, item := range ui.usedStorage.Items {
+		if item != ui.draggedItem {
+			itemSrcRect := &ui.textureIndex[item.Rune][0]
+			itemDstRect := ui.getExchangeItemRect(i)
+			ui.renderer.Copy(ui.textureAtlas, itemSrcRect, itemDstRect)
+		}
+	}
 }
 
 func (ui *ui) drawDraggedItem() {
