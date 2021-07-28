@@ -2,7 +2,7 @@ package main
 
 import (
 	"rpg/game"
-	ui2d "rpg/ui"
+	"rpg/ui"
 	"runtime"
 	"sync"
 )
@@ -13,12 +13,12 @@ func main() {
 	wg.Add(1)
 	go func() {
 		runtime.LockOSThread() // SDL has to stay on one thread
-		ui := ui2d.NewUI(g.InputChan, g.LevelChan)
+		ui := ui.NewUI(g.InputChan, g.LevelChan)
 		ui.Run()
 		ui.Destroy()
 		wg.Done()
 	}()
 	g.Run()
 	wg.Wait()
-	ui2d.Destroy()
+	ui.Destroy()
 }

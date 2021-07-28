@@ -1,4 +1,4 @@
-package ui2d
+package ui
 
 import (
 	"math/rand"
