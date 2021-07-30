@@ -28,7 +28,6 @@ func (level *Level) generateTile(x, y int, c rune) {
 	t.OverlayRune = Blank
 	t.canSee = true
 	t.canWalk = true
-	pos := Pos{x, y}
 
 	switch c {
 	case ' ', '\t', '\n', '\r':
@@ -63,32 +62,34 @@ func (level *Level) generateTile(x, y int, c rune) {
 		t.OverlayRune = StonePillar
 		t.Rune = Pending
 		t.canWalk = false
+	default:
+		level.generateEntity(x, y, c)
+		t.Rune = Pending
+	}
+	level.Map[y][x] = t
+}
 
+func (level *Level) generateEntity(x, y int, c rune) {
+	pos := Pos{x, y}
+	switch c {
 	case 's':
 		level.Items[pos] = append(level.Items[pos], NewSword(pos))
-		t.Rune = Pending
 	case 'h':
 		level.Items[pos] = append(level.Items[pos], NewHelmet(pos))
-		t.Rune = Pending
 	case 'a':
 		level.Items[pos] = append(level.Items[pos], NewArmor(pos))
-		t.Rune = Pending
 
 	case '@':
 		level.Player.Pos = pos
-		t.Rune = Pending
 	case 'R':
 		m := NewRat(pos)
 		level.Monsters = append(level.Monsters, m)
 		level.AliveMonstersPos[pos] = m
-		t.Rune = Pending
 	case 'S':
 		m := NewSpider(pos)
 		level.Monsters = append(level.Monsters, m)
 		level.AliveMonstersPos[pos] = m
-		t.Rune = Pending
 	default:
-		panic("Invalid character in the map: " + string(c))
+		panic("Invalid rune: " + string(c))
 	}
-	level.Map[y][x] = t
 }

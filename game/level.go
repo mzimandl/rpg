@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"math"
 	"os"
+	"strconv"
+	"strings"
 )
 
 type Level struct {
@@ -49,14 +51,26 @@ func NewLevelFromFile(filename string, player *Player) *Level {
 
 	scanner := bufio.NewScanner(file)
 	levelLines := make([]string, 0)
+	entityLines := make([]string, 0)
 	longestRow := 0
 	index := 0
+	end := false
 	for scanner.Scan() {
-		levelLines = append(levelLines, scanner.Text())
-		if len(levelLines[index]) > longestRow {
-			longestRow = len(levelLines[index])
+		text := scanner.Text()
+		if text == "ENTITIES:" {
+			end = true
+			continue
 		}
-		index++
+
+		if end {
+			entityLines = append(entityLines, text)
+		} else {
+			levelLines = append(levelLines, text)
+			if len(levelLines[index]) > longestRow {
+				longestRow = len(levelLines[index])
+			}
+			index++
+		}
 	}
 	level := &Level{}
 	level.Map = make([][]Tile, len(levelLines))
@@ -83,6 +97,20 @@ func NewLevelFromFile(filename string, player *Player) *Level {
 				level.Map[y][x].Rune = level.BfsFloor(Pos{x, y})
 			}
 		}
+	}
+
+	for _, line := range entityLines {
+		splitCXY := strings.Split(line, ",")
+		c := rune(splitCXY[0][0])
+		x, err := strconv.Atoi(splitCXY[1])
+		if err != nil {
+			panic(err)
+		}
+		y, err := strconv.Atoi(splitCXY[2])
+		if err != nil {
+			panic(err)
+		}
+		level.generateEntity(x, y, c)
 	}
 
 	level.Storages[Pos{1, 3}] = NewChest(Pos{1, 3})
