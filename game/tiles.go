@@ -71,25 +71,40 @@ func (level *Level) generateTile(x, y int, c rune) {
 
 func (level *Level) generateEntity(x, y int, c rune) {
 	pos := Pos{x, y}
+	item := level.generateItem(pos, c)
+	if item != nil {
+		level.Items[pos] = append(level.Items[pos], item)
+	} else {
+		switch c {
+		case '@':
+			level.Player.Pos = pos
+		case 'R':
+			m := NewRat(pos)
+			level.Monsters = append(level.Monsters, m)
+			level.AliveMonstersPos[pos] = m
+		case 'S':
+			m := NewSpider(pos)
+			level.Monsters = append(level.Monsters, m)
+			level.AliveMonstersPos[pos] = m
+
+		case '=':
+			level.Storages[pos] = NewChest(pos, &StorageConf{})
+
+		default:
+			panic("Invalid rune: " + string(c))
+		}
+	}
+}
+
+func (level *Level) generateItem(pos Pos, c rune) *Item {
 	switch c {
 	case 's':
-		level.Items[pos] = append(level.Items[pos], NewSword(pos))
+		return NewSword(pos)
 	case 'h':
-		level.Items[pos] = append(level.Items[pos], NewHelmet(pos))
+		return NewHelmet(pos)
 	case 'a':
-		level.Items[pos] = append(level.Items[pos], NewArmor(pos))
-
-	case '@':
-		level.Player.Pos = pos
-	case 'R':
-		m := NewRat(pos)
-		level.Monsters = append(level.Monsters, m)
-		level.AliveMonstersPos[pos] = m
-	case 'S':
-		m := NewSpider(pos)
-		level.Monsters = append(level.Monsters, m)
-		level.AliveMonstersPos[pos] = m
+		return NewArmor(pos)
 	default:
-		panic("Invalid rune: " + string(c))
+		return nil
 	}
 }

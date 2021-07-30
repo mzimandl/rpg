@@ -72,6 +72,7 @@ func NewLevelFromFile(filename string, player *Player) *Level {
 			index++
 		}
 	}
+
 	level := &Level{}
 	level.Map = make([][]Tile, len(levelLines))
 	for i := range level.Map {
@@ -113,7 +114,6 @@ func NewLevelFromFile(filename string, player *Player) *Level {
 		level.generateEntity(x, y, c)
 	}
 
-	level.Storages[Pos{1, 3}] = NewChest(Pos{1, 3})
 	return level
 }
 
