@@ -210,7 +210,10 @@ func (game *Game) handleInput(input *Input) {
 			game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, DropDown)
 		}
 	case ITakeAll:
-		for _, item := range game.CurrentLevel.Items[game.Player.Pos] {
+		// need to iterate over itemCopy, modification makes problems
+		itemCopy := make([]*Item, len(game.CurrentLevel.Items[game.Player.Pos]))
+		copy(itemCopy, game.CurrentLevel.Items[game.Player.Pos])
+		for _, item := range itemCopy {
 			game.Player.TakeItem(game.CurrentLevel, item)
 		}
 		game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, PickUp)

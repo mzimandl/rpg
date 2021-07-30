@@ -66,6 +66,7 @@ func (ui *ui) drawTiles(level *game.Level, offsetX, offsetY int32) {
 			}
 		}
 	}
+	ui.textureAtlas.SetColorMod(255, 255, 255)
 }
 
 func (ui *ui) drawDeadMonsters(level *game.Level, offsetX, offsetY int32) {
@@ -119,13 +120,21 @@ func (ui *ui) drawPlayer(level *game.Level, offsetX, offsetY int32) {
 
 func (ui *ui) drawStorages(level *game.Level, offsetX, offsetY int32) {
 	for pos, storage := range level.Storages {
-		var srcRect sdl.Rect
-		if storage == ui.usedStorage {
-			srcRect = ui.textureIndex[storage.Rune][len(ui.textureIndex[storage.Rune])-1]
-		} else {
-			srcRect = ui.textureIndex[storage.Rune][0]
+		if level.Map[pos.Y][pos.X].Visited {
+			var srcRect sdl.Rect
+			if storage == ui.usedStorage {
+				srcRect = ui.textureIndex[storage.Rune][len(ui.textureIndex[storage.Rune])-1]
+			} else {
+				srcRect = ui.textureIndex[storage.Rune][0]
+			}
+
+			dstRect := sdl.Rect{offsetX + int32(pos.X)*tileSize, offsetY + int32(pos.Y)*tileSize, tileSize, tileSize}
+
+			if !level.Map[pos.Y][pos.X].Visible {
+				ui.textureAtlas.SetColorMod(128, 128, 128)
+			}
+			ui.renderer.Copy(ui.textureAtlas, &srcRect, &dstRect)
+			ui.textureAtlas.SetColorMod(255, 255, 255)
 		}
-		dstRect := sdl.Rect{offsetX + int32(pos.X)*tileSize, offsetY + int32(pos.Y)*tileSize, tileSize, tileSize}
-		ui.renderer.Copy(ui.textureAtlas, &srcRect, &dstRect)
 	}
 }
