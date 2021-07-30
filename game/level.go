@@ -102,6 +102,9 @@ func NewLevelFromFile(filename string, player *Player) *Level {
 
 	for _, line := range entityLines {
 		splitCXY := strings.Split(line, ",")
+		if len(splitCXY) < 3 {
+			continue
+		}
 		c := rune(splitCXY[0][0])
 		x, err := strconv.Atoi(splitCXY[1])
 		if err != nil {
