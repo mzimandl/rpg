@@ -88,7 +88,8 @@ func (level *Level) generateEntity(x, y int, c rune) {
 			level.AliveMonstersPos[pos] = m
 
 		case '=':
-			level.Storages[pos] = NewChest(pos, &StorageConf{})
+			level.Storages[pos] = NewChest(pos, &StorageConf{items: level.Items[pos]})
+			delete(level.Items, pos)
 
 		default:
 			panic("Invalid rune: " + string(c))
