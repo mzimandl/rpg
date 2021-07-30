@@ -1,8 +1,13 @@
 package game
 
-type Storage struct {
+type Repository struct {
 	Entity
 	Items []*Item
+}
+
+type Storage struct {
+	Repository
+	Locked bool
 }
 
 func NewChest(pos Pos) *Storage {
@@ -11,5 +16,6 @@ func NewChest(pos Pos) *Storage {
 	chest.Rune = '='
 	chest.Pos = pos
 	chest.Items = append(chest.Items, NewSword(pos))
+	chest.Locked = true
 	return chest
 }

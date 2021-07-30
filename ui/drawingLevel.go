@@ -122,7 +122,7 @@ func (ui *ui) drawStorages(level *game.Level, offsetX, offsetY int32) {
 	for pos, storage := range level.Storages {
 		if level.Map[pos.Y][pos.X].Visited {
 			var srcRect sdl.Rect
-			if storage == ui.usedStorage {
+			if &storage.Repository == ui.usedRepository {
 				srcRect = ui.textureIndex[storage.Rune][len(ui.textureIndex[storage.Rune])-1]
 			} else {
 				srcRect = ui.textureIndex[storage.Rune][0]

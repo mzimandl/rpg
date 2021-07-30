@@ -24,12 +24,12 @@ func (ui *ui) checkGroundItems(level *game.Level) *game.Item {
 	return nil
 }
 
-func (ui *ui) checkGroundStorage(level *game.Level) *game.Storage {
+func (ui *ui) checkGroundStorage(level *game.Level) *game.Repository {
 	storage := level.Storages[level.Player.Pos]
-	if storage != nil {
+	if storage != nil && !storage.Locked {
 		itemDstRect := ui.getGroundItemRect(0)
 		if ui.mouseState.onRect(itemDstRect) {
-			return storage
+			return &storage.Repository
 		}
 	}
 	return nil
@@ -57,7 +57,7 @@ func (ui *ui) checkEquippedItems(level *game.Level) *game.Item {
 }
 
 func (ui *ui) checkExchangeItems(level *game.Level) *game.Item {
-	for i, item := range ui.usedStorage.Items {
+	for i, item := range ui.usedRepository.Items {
 		itemDstRect := ui.getExchangeItemRect(i)
 		if ui.mouseState.onRect(itemDstRect) {
 			return item

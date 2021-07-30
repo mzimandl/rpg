@@ -10,7 +10,7 @@ func (ui *ui) drawGroundItems(level *game.Level, x, y int32) {
 	storage := level.Storages[level.Player.Pos]
 	if storage != nil {
 		var srcRect *sdl.Rect
-		if ui.usedStorage == storage {
+		if ui.usedRepository == &storage.Repository {
 			srcRect = &ui.textureIndex[storage.Rune][len(ui.textureIndex[storage.Rune])-1]
 		} else {
 			srcRect = &ui.textureIndex[storage.Rune][0]
@@ -76,7 +76,7 @@ func (ui *ui) drawInventory(level *game.Level) {
 func (ui *ui) drawExchange() {
 	ui.drawBox(ui.placements.exch, sdl.Color{149, 84, 19, 128})
 
-	for i, item := range ui.usedStorage.Items {
+	for i, item := range ui.usedRepository.Items {
 		if item != ui.draggedItem {
 			itemSrcRect := &ui.textureIndex[item.Rune][0]
 			itemDstRect := ui.getExchangeItemRect(i)

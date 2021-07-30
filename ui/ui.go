@@ -36,7 +36,7 @@ type ui struct {
 	textCache      map[TextCacheKey]*sdl.Texture
 	dragFrom       UIArea
 	draggedItem    *game.Item
-	usedStorage    *game.Storage
+	usedRepository *game.Repository
 
 	music  *mix.Music
 	sounds *sounds
@@ -172,7 +172,7 @@ func (ui *ui) Run() {
 				if item != nil {
 					input.Typ = game.IEquipItem
 					input.Item = item
-				} else if ui.usedStorage != nil {
+				} else if ui.usedRepository != nil {
 					item = ui.checkExchangeItems(currentLevel)
 					if item != nil {
 						input.Typ = game.ITakeItem
@@ -185,7 +185,7 @@ func (ui *ui) Run() {
 				if item == nil {
 					item = ui.checkEquippedItems(currentLevel)
 					ui.dragFrom = UIASlot
-					if item == nil && ui.usedStorage != nil {
+					if item == nil && ui.usedRepository != nil {
 						item = ui.checkExchangeItems(currentLevel)
 						ui.dragFrom = UIAExch
 					}
@@ -209,7 +209,7 @@ func (ui *ui) Run() {
 					}
 				}
 				if item == nil {
-					if ui.usedStorage != nil {
+					if ui.usedRepository != nil {
 						item = ui.checkExchangeDrag()
 					} else {
 						item = ui.checkDropDrag()
@@ -245,7 +245,7 @@ func (ui *ui) Run() {
 			} else {
 				storage := ui.checkGroundStorage(currentLevel)
 				if storage != nil {
-					ui.usedStorage = storage
+					ui.usedRepository = storage
 					ui.state = UIInventory
 				}
 			}
@@ -254,7 +254,7 @@ func (ui *ui) Run() {
 		if ui.keyboardState.pressed(sdl.SCANCODE_ESCAPE) {
 			if ui.state != UIMain {
 				ui.state = UIMain
-				ui.usedStorage = nil
+				ui.usedRepository = nil
 			} else {
 				input.Typ = game.IQuitGame
 			}
@@ -289,9 +289,12 @@ func (ui *ui) Run() {
 		} else if ui.keyboardState.pressed(sdl.SCANCODE_T) {
 			input.Typ = game.ITakeAll
 		} else if ui.keyboardState.pressed(sdl.SCANCODE_TAB) {
-			if ui.usedStorage == nil {
-				ui.usedStorage = currentLevel.Storages[currentLevel.Player.Pos]
-				if ui.usedStorage == nil {
+			if ui.usedRepository == nil {
+				storage := currentLevel.Storages[currentLevel.Player.Pos]
+				if storage != nil && !storage.Locked {
+					ui.usedRepository = &storage.Repository
+				}
+				if ui.usedRepository == nil {
 					if ui.state != UIMain {
 						ui.state = UIMain
 					} else {
@@ -301,7 +304,7 @@ func (ui *ui) Run() {
 					ui.state = UIInventory
 				}
 			} else {
-				ui.usedStorage = nil
+				ui.usedRepository = nil
 				ui.state = UIMain
 			}
 		}
@@ -316,10 +319,10 @@ func (ui *ui) Run() {
 				for _, lastEvent := range currentLevel.LastEvents {
 					switch lastEvent {
 					case game.Portal:
-						ui.usedStorage = nil
+						ui.usedRepository = nil
 						ui.centerX, ui.centerY = -1, -1
 					case game.Move:
-						ui.usedStorage = nil
+						ui.usedRepository = nil
 						playRandomSound(ui.sounds.footstep, 10)
 					case game.DoorOpen:
 						playRandomSound(ui.sounds.doorOpen, 10)
@@ -336,7 +339,7 @@ func (ui *ui) Run() {
 		ui.drawUI(currentLevel)
 		switch ui.state {
 		case UIInventory:
-			if ui.usedStorage != nil {
+			if ui.usedRepository != nil {
 				ui.drawExchange()
 			}
 			ui.drawInventory(currentLevel)

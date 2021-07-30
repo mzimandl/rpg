@@ -3,7 +3,7 @@ package game
 import "strconv"
 
 type Character struct {
-	Storage
+	Repository
 
 	Hitpoints    int
 	Strength     int
@@ -44,11 +44,13 @@ func (c *Character) Attack(cToAttack *Character) string {
 func (c *Character) TakeItem(level *Level, itemToMove *Item) bool {
 	storage := level.Storages[c.Pos]
 	if storage != nil {
-		for i, item := range storage.Items {
-			if item == itemToMove {
-				storage.Items = append(storage.Items[:i], storage.Items[i+1:]...)
-				c.Items = append(c.Items, itemToMove)
-				return true
+		if !storage.Locked {
+			for i, item := range storage.Items {
+				if item == itemToMove {
+					storage.Items = append(storage.Items[:i], storage.Items[i+1:]...)
+					c.Items = append(c.Items, itemToMove)
+					return true
+				}
 			}
 		}
 	} else {
@@ -68,11 +70,13 @@ func (c *Character) TakeAllItems(level *Level) bool {
 	storage := level.Storages[c.Pos]
 	items := level.Items[c.Pos]
 	if storage != nil {
-		for _, item := range storage.Items {
-			c.Items = append(c.Items, item)
+		if !storage.Locked {
+			for _, item := range storage.Items {
+				c.Items = append(c.Items, item)
+			}
+			storage.Items = make([]*Item, 0)
+			return true
 		}
-		storage.Items = make([]*Item, 0)
-		return true
 	} else if len(items) > 0 {
 		for _, item := range items {
 			c.Items = append(c.Items, item)
@@ -86,13 +90,17 @@ func (c *Character) TakeAllItems(level *Level) bool {
 func (c *Character) DropItem(level *Level, itemToMove *Item) bool {
 	for i, item := range c.Items {
 		if item == itemToMove {
+			storage := level.Storages[c.Pos]
+			if storage != nil && storage.Locked {
+				return false
+			}
+
 			item.Pos = c.Pos
 			c.Items = append(c.Items[:i], c.Items[i+1:]...)
-			storage := level.Storages[c.Pos]
 			if storage != nil {
-				storage.Items = append(storage.Items, itemToMove)
+				storage.Items = append(storage.Items, item)
 			} else {
-				level.Items[c.Pos] = append(level.Items[c.Pos], itemToMove)
+				level.Items[c.Pos] = append(level.Items[c.Pos], item)
 			}
 			return true
 		}
