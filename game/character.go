@@ -64,6 +64,25 @@ func (c *Character) TakeItem(level *Level, itemToMove *Item) bool {
 	return false
 }
 
+func (c *Character) TakeAllItems(level *Level) bool {
+	storage := level.Storages[c.Pos]
+	items := level.Items[c.Pos]
+	if storage != nil {
+		for _, item := range storage.Items {
+			c.Items = append(c.Items, item)
+		}
+		storage.Items = make([]*Item, 0)
+		return true
+	} else if len(items) > 0 {
+		for _, item := range items {
+			c.Items = append(c.Items, item)
+		}
+		level.Items[c.Pos] = make([]*Item, 0)
+		return true
+	}
+	return false
+}
+
 func (c *Character) DropItem(level *Level, itemToMove *Item) bool {
 	for i, item := range c.Items {
 		if item == itemToMove {
