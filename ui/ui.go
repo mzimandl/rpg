@@ -175,7 +175,7 @@ func (ui *ui) Run() {
 				} else if ui.usedRepository != nil {
 					item = ui.checkExchangeItems(currentLevel)
 					if item != nil {
-						input.Typ = game.ITakeItem
+						input.Typ = game.IWithdrawItem
 						input.Item = item
 					}
 				}
@@ -196,27 +196,29 @@ func (ui *ui) Run() {
 				if item != nil {
 					input.Typ = game.IEquipItem
 					input.Item = item
-				}
-				if item == nil {
+				} else {
 					item = ui.checkInventoryDrag()
 					if item != nil {
 						if ui.dragFrom == UIAExch {
-							input.Typ = game.ITakeItem
+							input.Typ = game.IWithdrawItem
 						} else {
 							input.Typ = game.IStripItem
 						}
 						input.Item = item
-					}
-				}
-				if item == nil {
-					if ui.usedRepository != nil {
-						item = ui.checkExchangeDrag()
 					} else {
-						item = ui.checkDropDrag()
-					}
-					if item != nil {
-						input.Typ = game.IDropItem
-						input.Item = item
+						if ui.usedRepository != nil {
+							item = ui.checkExchangeDrag()
+							if item != nil {
+								input.Typ = game.IStoreItem
+								input.Item = item
+							}
+						} else {
+							item = ui.checkDropDrag()
+							if item != nil {
+								input.Typ = game.IDropItem
+								input.Item = item
+							}
+						}
 					}
 				}
 				ui.draggedItem = nil
@@ -229,8 +231,13 @@ func (ui *ui) Run() {
 				if item == nil {
 					item = ui.checkInventoryItems(currentLevel)
 					if item != nil {
-						input.Typ = game.IDropItem
-						input.Item = item
+						if ui.usedRepository != nil {
+							input.Typ = game.IStoreItem
+							input.Item = item
+						} else {
+							input.Typ = game.IDropItem
+							input.Item = item
+						}
 					}
 				}
 			}
@@ -287,7 +294,11 @@ func (ui *ui) Run() {
 				input.Typ = game.IMove
 			}
 		} else if ui.keyboardState.pressed(sdl.SCANCODE_T) {
-			input.Typ = game.ITakeAll
+			if ui.state == UIInventory && ui.usedRepository != nil {
+				input.Typ = game.IWithdrawAllItems
+			} else {
+				input.Typ = game.ITakeAllItems
+			}
 		} else if ui.keyboardState.pressed(sdl.SCANCODE_TAB) {
 			if ui.usedRepository == nil {
 				storage := currentLevel.Storages[currentLevel.Player.Pos]

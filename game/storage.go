@@ -16,6 +16,6 @@ func NewChest(pos Pos) *Storage {
 	chest.Rune = '='
 	chest.Pos = pos
 	chest.Items = append(chest.Items, NewSword(pos))
-	chest.Locked = true
+	chest.Locked = false
 	return chest
 }

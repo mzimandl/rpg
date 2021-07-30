@@ -44,9 +44,12 @@ const (
 	INone InputType = iota
 	IMove
 	IAction
-	ITakeAll
 	ITakeItem
+	ITakeAllItems
 	IDropItem
+	IWithdrawItem
+	IWithdrawAllItems
+	IStoreItem
 	IEquipItem
 	IStripItem
 	IQuitGame
@@ -204,14 +207,46 @@ func (game *Game) handleInput(input *Input) {
 		if game.Player.TakeItem(game.CurrentLevel, input.Item) {
 			game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, PickUp)
 		}
-	case IDropItem:
-		game.Player.Strip(input.Item)
-		if game.Player.DropItem(game.CurrentLevel, input.Item) {
-			game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, DropDown)
+	case ITakeAllItems:
+		if len(game.CurrentLevel.Items[game.Player.Pos]) > 0 {
+			took := false
+			itemsCopy := make([]*Item, len(game.CurrentLevel.Items[game.Player.Pos]))
+			copy(itemsCopy, game.CurrentLevel.Items[game.Player.Pos])
+			for _, item := range itemsCopy {
+				took = game.Player.TakeItem(game.CurrentLevel, item)
+			}
+			if took {
+				game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, PickUp)
+			}
 		}
-	case ITakeAll:
-		if game.Player.TakeAllItems(game.CurrentLevel) {
+	case IDropItem:
+		if game.CurrentLevel.Storages[game.CurrentLevel.Player.Pos] != nil {
+			game.Player.Strip(input.Item)
+			if game.Player.DropItem(game.CurrentLevel, input.Item) {
+				game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, DropDown)
+			}
+		}
+	case IWithdrawItem:
+		if game.Player.WithdrawItem(game.CurrentLevel, input.Item) {
 			game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, PickUp)
+		}
+	case IWithdrawAllItems:
+		took := false
+		storage := game.CurrentLevel.Storages[game.Player.Pos]
+		if storage != nil && !storage.Locked {
+			itemsCopy := make([]*Item, len(storage.Items))
+			copy(itemsCopy, storage.Items)
+			for _, item := range itemsCopy {
+				took = game.Player.WithdrawItem(game.CurrentLevel, item)
+			}
+			if took {
+				game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, PickUp)
+			}
+		}
+	case IStoreItem:
+		game.Player.Strip(input.Item)
+		if game.Player.StoreItem(game.CurrentLevel, input.Item) {
+			game.CurrentLevel.LastEvents = append(game.CurrentLevel.LastEvents, DropDown)
 		}
 	case IEquipItem:
 		if game.Player.Equip(input.Item) {

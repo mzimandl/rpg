@@ -7,6 +7,7 @@ import (
 )
 
 func (ui *ui) drawGroundItems(level *game.Level, x, y int32) {
+	indexShift := 0
 	storage := level.Storages[level.Player.Pos]
 	if storage != nil {
 		var srcRect *sdl.Rect
@@ -17,12 +18,12 @@ func (ui *ui) drawGroundItems(level *game.Level, x, y int32) {
 		}
 		dstRect := ui.getGroundItemRect(0)
 		ui.renderer.Copy(ui.textureAtlas, srcRect, dstRect)
-	} else {
-		for i, item := range level.Items[level.Player.Pos] {
-			itemSrcRect := &ui.textureIndex[item.Rune][0]
-			itemDstRect := ui.getGroundItemRect(i)
-			ui.renderer.Copy(ui.textureAtlas, itemSrcRect, itemDstRect)
-		}
+		indexShift++
+	}
+	for i, item := range level.Items[level.Player.Pos] {
+		itemSrcRect := &ui.textureIndex[item.Rune][0]
+		itemDstRect := ui.getGroundItemRect(i + indexShift)
+		ui.renderer.Copy(ui.textureAtlas, itemSrcRect, itemDstRect)
 	}
 }
 

@@ -15,8 +15,13 @@ const (
 )
 
 func (ui *ui) checkGroundItems(level *game.Level) *game.Item {
+	indexShift := 0
+	storage := level.Storages[level.Player.Pos]
+	if storage != nil {
+		indexShift++
+	}
 	for i, item := range level.Items[level.Player.Pos] {
-		itemDstRect := ui.getGroundItemRect(i)
+		itemDstRect := ui.getGroundItemRect(i + indexShift)
 		if ui.mouseState.onRect(itemDstRect) {
 			return item
 		}

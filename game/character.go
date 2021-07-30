@@ -42,47 +42,13 @@ func (c *Character) Attack(cToAttack *Character) string {
 }
 
 func (c *Character) TakeItem(level *Level, itemToMove *Item) bool {
-	storage := level.Storages[c.Pos]
-	if storage != nil {
-		if !storage.Locked {
-			for i, item := range storage.Items {
-				if item == itemToMove {
-					storage.Items = append(storage.Items[:i], storage.Items[i+1:]...)
-					c.Items = append(c.Items, itemToMove)
-					return true
-				}
-			}
-		}
-	} else {
-		items := level.Items[c.Pos]
-		for i, item := range items {
-			if item == itemToMove {
-				level.Items[c.Pos] = append(items[:i], items[i+1:]...)
-				c.Items = append(c.Items, itemToMove)
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func (c *Character) TakeAllItems(level *Level) bool {
-	storage := level.Storages[c.Pos]
 	items := level.Items[c.Pos]
-	if storage != nil {
-		if !storage.Locked {
-			for _, item := range storage.Items {
-				c.Items = append(c.Items, item)
-			}
-			storage.Items = make([]*Item, 0)
+	for i, item := range items {
+		if item == itemToMove {
+			level.Items[c.Pos] = append(items[:i], items[i+1:]...)
+			c.Items = append(c.Items, itemToMove)
 			return true
 		}
-	} else if len(items) > 0 {
-		for _, item := range items {
-			c.Items = append(c.Items, item)
-		}
-		level.Items[c.Pos] = make([]*Item, 0)
-		return true
 	}
 	return false
 }
@@ -90,19 +56,39 @@ func (c *Character) TakeAllItems(level *Level) bool {
 func (c *Character) DropItem(level *Level, itemToMove *Item) bool {
 	for i, item := range c.Items {
 		if item == itemToMove {
-			storage := level.Storages[c.Pos]
-			if storage != nil && storage.Locked {
-				return false
-			}
-
 			item.Pos = c.Pos
 			c.Items = append(c.Items[:i], c.Items[i+1:]...)
-			if storage != nil {
-				storage.Items = append(storage.Items, item)
-			} else {
-				level.Items[c.Pos] = append(level.Items[c.Pos], item)
-			}
+			level.Items[c.Pos] = append(level.Items[c.Pos], item)
 			return true
+		}
+	}
+	return false
+}
+
+func (c *Character) StoreItem(level *Level, itemToMove *Item) bool {
+	storage := level.Storages[c.Pos]
+	if storage != nil && !storage.Locked {
+		for i, item := range c.Items {
+			if item == itemToMove {
+				item.Pos = c.Pos
+				c.Items = append(c.Items[:i], c.Items[i+1:]...)
+				storage.Items = append(storage.Items, item)
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (c *Character) WithdrawItem(level *Level, itemToMove *Item) bool {
+	storage := level.Storages[c.Pos]
+	if storage != nil && !storage.Locked {
+		for i, item := range storage.Items {
+			if item == itemToMove {
+				storage.Items = append(storage.Items[:i], storage.Items[i+1:]...)
+				c.Items = append(c.Items, itemToMove)
+				return true
+			}
 		}
 	}
 	return false
